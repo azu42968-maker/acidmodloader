@@ -1,0 +1,17 @@
+# Entornos y builds (se regeneran con build_exe.py)
+.build-venv/
+.build-python312/
+build/
+dist/
+release/
+*.spec
+
+# Python
+__pycache__/
+*.pyc
+
+# Config local de cada usuario
+config.json
+
+# JRE: build_exe.py lo descarga solo. ffdec_lib.jar y sus libs SI se suben.
+vendor/jre/

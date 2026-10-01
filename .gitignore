@@ -1,0 +1,12 @@
+# Entornos / builds
+.build-venv/
+.build-python312/
+build/
+dist/
+release/
+*.spec
+__pycache__/
+*.pyc
+
+# Config local
+config.json

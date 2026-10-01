@@ -14,7 +14,7 @@
   const btn = document.createElement('button');
   btn.textContent = '⟳ Updates';
   Object.assign(btn.style, {
-    position: 'fixed', right: '16px', bottom: '16px', zIndex: 2147483647,
+    position: 'fixed', right: '16px', top: '16px', zIndex: 2147483647,
     padding: '10px 14px', border: '1px solid #3a3d42', borderRadius: '10px',
     background: '#15171a', color: '#e8e8e8', font: '600 13px system-ui, sans-serif',
     cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,.4)'
@@ -29,7 +29,7 @@
 
   const panel = document.createElement('div');
   Object.assign(panel.style, {
-    position: 'fixed', right: '16px', bottom: '64px', zIndex: 2147483647, width: '300px',
+    position: 'fixed', right: '16px', top: '64px', zIndex: 2147483647, width: '300px',
     padding: '14px', border: '1px solid #3a3d42', borderRadius: '12px', display: 'none',
     background: '#15171a', color: '#e8e8e8', font: '13px/1.45 system-ui, sans-serif',
     boxShadow: '0 8px 24px rgba(0,0,0,.5)'

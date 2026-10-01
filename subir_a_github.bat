@@ -86,13 +86,49 @@ REM --- Subir ---
 echo.
 echo Subiendo a GitHub...
 git push -u origin main
-if errorlevel 1 (
-    echo.
-    echo [ERROR] El push fallo. Revisa tu login de GitHub o si el repo remoto ya tiene commits que no tienes aqui.
-    pause
-    exit /b 1
-)
+if not errorlevel 1 goto ok
 
 echo.
-echo Listo, web subida correctamente.
+echo [!] GitHub rechazo el push: el repo remoto tiene commits que no tienes aqui.
+echo.
+echo   [1] Unir y quedarme con MIS archivos   (seguro, no se pierde historial)
+echo   [2] Reemplazar el remoto con lo mio    (borra el historial viejo de main)
+echo   [N] Cancelar
+echo.
+choice /c 12N /n /m "Elige 1, 2 o N: "
+if errorlevel 3 goto cancelado
+if errorlevel 2 goto forzar
+
+echo.
+echo Uniendo historiales...
+git fetch origin
+git merge -s ours origin/main --allow-unrelated-histories -m "Unir historial remoto (se conservan los archivos locales)"
+if errorlevel 1 goto fallo
+git push -u origin main
+if errorlevel 1 goto fallo
+goto ok
+
+:forzar
+echo.
+echo Reemplazando el remoto con tu version...
+git fetch origin
+git push -u origin main --force-with-lease
+if errorlevel 1 goto fallo
+goto ok
+
+:cancelado
+echo.
+echo Cancelado. No se subio nada.
+pause
+exit /b 0
+
+:fallo
+echo.
+echo [ERROR] No se pudo subir. Revisa tu login de GitHub y el mensaje de arriba.
+pause
+exit /b 1
+
+:ok
+echo.
+echo Listo, subido correctamente.
 pause

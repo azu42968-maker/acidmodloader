@@ -112,7 +112,7 @@ def ensure_ffdec(ffdec_jar_path: str, java_home: str | None = None) -> None:
     _ffdec_ready = True
 
 
-SWF = SymbolClassTag = DefineSpriteTag = DefineSoundTag = None
+SWF = SymbolClassTag = DefineSpriteTag = DefineSoundTag = ImageTagClass = None
 DefineShapeTags = ()
 PlaceObjectTags = ()
 HashSet = FileInputStream = FileOutputStream = BufferedInputStream = None
@@ -121,7 +121,7 @@ HashSet = FileInputStream = FileOutputStream = BufferedInputStream = None
 def _load_classes() -> None:
     from jpype import JClass
 
-    global SWF, SymbolClassTag, DefineSpriteTag, DefineSoundTag
+    global SWF, SymbolClassTag, DefineSpriteTag, DefineSoundTag, ImageTagClass
     global DefineShapeTags, PlaceObjectTags
     global HashSet, FileInputStream, FileOutputStream, BufferedInputStream
 
@@ -134,6 +134,8 @@ def _load_classes() -> None:
     SymbolClassTag = JClass("com.jpexs.decompiler.flash.tags.SymbolClassTag")
     DefineSpriteTag = JClass("com.jpexs.decompiler.flash.tags.DefineSpriteTag")
     DefineSoundTag = JClass("com.jpexs.decompiler.flash.tags.DefineSoundTag")
+    # DefineBits / DefineBitsLossless(2) / DefineBitsJPEG2-4: the textures used by shapes.
+    ImageTagClass = JClass("com.jpexs.decompiler.flash.tags.base.ImageTag")
 
     DefineShapeTag = JClass("com.jpexs.decompiler.flash.tags.DefineShapeTag")
     DefineShape2Tag = JClass("com.jpexs.decompiler.flash.tags.DefineShape2Tag")
@@ -150,6 +152,10 @@ class MergeError(Exception):
     pass
 
 
+def _is_image(element) -> bool:
+    return bool(ImageTagClass.class_.isInstance(element))
+
+
 def _get_element_id(element) -> int | None:
     t = type(element)
     if t in DefineShapeTags:
@@ -160,6 +166,8 @@ def _get_element_id(element) -> int | None:
         eid = int(element.soundId)
     elif t in PlaceObjectTags:
         eid = int(element.characterId)
+    elif _is_image(element):
+        eid = int(element.getCharacterId())
     else:
         return None
     return eid if eid > 0 else None
@@ -175,6 +183,8 @@ def _set_element_id(element, elid: int) -> None:
         element.soundId = elid
     elif t in PlaceObjectTags:
         element.characterId = elid
+    elif _is_image(element):
+        element.setCharacterId(elid)
     element.setModified(True)
 
 

@@ -10,11 +10,12 @@ import sys
 import tarfile
 import tempfile
 import time
+import traceback
 import zipfile
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-ROOT = Path(__file__).parent
+ROOT = Path(__file__).resolve().parent
 VENDOR = ROOT / "vendor"
 JRE_DIR = VENDOR / "jre"
 FFDEC_JAR = VENDOR / "ffdec_lib.jar"
@@ -159,32 +160,39 @@ def _find_target_python_interpreter() -> list[str]:
     )
 
 
+def _venv_is_usable(venv_dir: Path) -> bool:
+    python_exe = _venv_python(venv_dir)
+    if not python_exe.is_file():
+        return False
+    try:
+        result = subprocess.run(
+            [str(python_exe), "-c", "import PyInstaller, webview, jpype"],
+            capture_output=True, timeout=60,
+        )
+        return result.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 def _ensure_target_python() -> None:
-    if sys.version_info[:2] == TARGET_PYTHON:
+    # Ya estamos corriendo dentro del entorno de build.
+    if os.environ.get("_ACID_BUILD_VENV_ACTIVE") == "1":
         return
 
-    if os.environ.get("_ACID_BUILD_VENV_ACTIVE") == "1":
-        raise SystemExit(
-            f"[X] Re-launched into {BUILD_VENV}, but it's running Python "
-            f"{sys.version_info.major}.{sys.version_info.minor}, not "
-            f"{TARGET_PYTHON[0]}.{TARGET_PYTHON[1]}. Delete the "
-            f"{BUILD_VENV.name} folder and re-run this script."
+    if not _venv_is_usable(BUILD_VENV):
+        if "--py312" in sys.argv:
+            # Opcional: forzar Python 3.12 (lo descarga si hace falta).
+            interpreter_prefix = _find_target_python_interpreter()
+        else:
+            interpreter_prefix = [sys.executable]  # usa el Python con el que lo abriste
+
+        print(
+            f"[i] Creating a build environment at {BUILD_VENV} with "
+            f"Python {sys.version_info.major}.{sys.version_info.minor} (first run only)..."
         )
-
-    print(
-        f"[i] Running under Python {sys.version_info.major}.{sys.version_info.minor}; "
-        f"this project builds against {TARGET_PYTHON[0]}.{TARGET_PYTHON[1]}."
-    )
-
-    if not _venv_has_target_python(BUILD_VENV):
-        interpreter_prefix = _find_target_python_interpreter()
-        version_str = f"{TARGET_PYTHON[0]}.{TARGET_PYTHON[1]}"
-        creator = [*interpreter_prefix, "-m", "venv", str(BUILD_VENV)]
-
-        print(f"[i] Creating a Python {version_str} build environment at {BUILD_VENV} (first run only)...")
         if BUILD_VENV.exists():
             shutil.rmtree(BUILD_VENV)
-        subprocess.run(creator, check=True)
+        subprocess.run([*interpreter_prefix, "-m", "venv", str(BUILD_VENV)], check=True)
 
         venv_python = str(_venv_python(BUILD_VENV))
         print("[i] Installing pyinstaller + requirements.txt into it...")
@@ -391,10 +399,48 @@ def _write_launcher_bat() -> None:
     )
 
 
-if __name__ == "__main__":
+def main() -> None:
+    os.chdir(ROOT)
     _ensure_target_python()
     _download_jre()
     _check_ffdec_jar()
     _check_icon()
     _run_pyinstaller()
     _write_launcher_bat()
+
+
+def _opened_by_double_click() -> bool:
+    """True si Windows abrio una consola nueva solo para este script (doble clic)."""
+    if platform.system() != "Windows" or "--no-pause" in sys.argv:
+        return False
+    if os.environ.get("_ACID_BUILD_VENV_ACTIVE") == "1":
+        return False  # el proceso hijo nunca pausa; pausa el padre
+    if any(k in os.environ for k in ("PROMPT", "WT_SESSION", "TERM_PROGRAM")):
+        return False  # ya estaba en una terminal abierta
+    try:
+        import ctypes
+        pids = (ctypes.c_uint * 4)()
+        return ctypes.windll.kernel32.GetConsoleProcessList(pids, 4) <= 2
+    except Exception:
+        return True
+
+
+if __name__ == "__main__":
+    exit_code = 0
+    try:
+        main()
+    except SystemExit as e:
+        if isinstance(e.code, int):
+            exit_code = e.code
+        elif e.code:
+            print(e.code, file=sys.stderr)
+            exit_code = 1
+    except BaseException:
+        traceback.print_exc()
+        exit_code = 1
+
+    if _opened_by_double_click():
+        print()
+        print("[OK] Build terminado." if exit_code == 0 else f"[X] El build fallo (codigo {exit_code}). Revisa el mensaje de arriba.")
+        input("Presiona Enter para cerrar...")
+    sys.exit(exit_code)

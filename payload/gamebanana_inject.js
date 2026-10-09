@@ -212,7 +212,7 @@
     if (u.protocol !== "http:" && u.protocol !== "https:") return false;
     if (!/(^|\.)gamebanana\.com$/i.test(u.hostname)) return false;
     if (/\/(?:mmdl|dl)\/\d+/i.test(u.pathname)) return true;
-    if (/\.(?:zip|rar|7z|swf|bmod)$/i.test(u.pathname)) return true;
+    if (/\.(?:zip|rar|7z|tar|gz|tgz|bz2|tbz2|xz|txz|lzma|cab|iso|swf|bmod)$/i.test(u.pathname)) return true;
     return false;
   }
 

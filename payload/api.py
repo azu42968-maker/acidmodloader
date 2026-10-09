@@ -10,6 +10,7 @@ from pathlib import Path
 import webview
 
 import adblock
+import archive_utils
 import installer
 import mod_registry
 import updater
@@ -56,6 +57,7 @@ def _persistent_vendor_dir() -> Path:
 
 
 _VENDOR_DIR = _persistent_vendor_dir()
+archive_utils.VENDOR_DIR = _VENDOR_DIR
 
 DEFAULT_FFDEC_JAR = _VENDOR_DIR / "ffdec_lib.jar"
 
@@ -192,13 +194,7 @@ class Api:
         failed = True
         try:
             try:
-                if ext == ".zip":
-                    installer.install_zip_mod(
-                        data, Path(brawlhalla_path), log,
-                        ffdec_jar_path=self._resolve_ffdec_jar_path(),
-                        java_home=self._resolve_java_home(),
-                    )
-                elif ext == ".swf":
+                if ext == ".swf":
                     installer.install_loose_swf(data, name, Path(brawlhalla_path), log)
                 elif ext == ".bmod":
                     with tempfile.NamedTemporaryFile(suffix=".bmod", delete=False) as tmp:
@@ -212,11 +208,18 @@ class Api:
                         )
                     finally:
                         tmp_bmod_path.unlink(missing_ok=True)
+                elif archive_utils.is_archive(data, name):
+                    zip_bytes = archive_utils.to_zip_bytes(data, name, log)
+                    installer.install_zip_mod(
+                        zip_bytes, Path(brawlhalla_path), log,
+                        ffdec_jar_path=self._resolve_ffdec_jar_path(),
+                        java_home=self._resolve_java_home(),
+                    )
                 else:
                     log(f"[X] Unsupported mod file type: {ext}")
                     return {"ok": False, "log": log_lines}
                 failed = False
-            except installer.InstallError as e:
+            except (installer.InstallError, archive_utils.ArchiveError) as e:
                 log(f"[X] {e}")
                 return {"ok": False, "log": log_lines}
             except Exception as e:

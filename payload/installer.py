@@ -3,6 +3,7 @@ import zipfile
 import io
 from pathlib import Path
 
+import archive_utils
 import mod_registry
 from bmod_reader import parse_bmod, BmodError
 from swf_sprite_merge import merge_bmod_swfs, MergeError
@@ -202,9 +203,15 @@ def install_zip_mod(
                 log("")
                 continue
 
-            if ext == ".zip":
+            if ext in archive_utils.ARCHIVE_EXTS:
                 nested_bytes = mods_zip.read(info)
-                with zipfile.ZipFile(io.BytesIO(nested_bytes)) as nested_zip:
+                try:
+                    nested_bytes = archive_utils.to_zip_bytes(nested_bytes, name, log)
+                    nested_zip_file = zipfile.ZipFile(io.BytesIO(nested_bytes))
+                except (archive_utils.ArchiveError, zipfile.BadZipFile) as e:
+                    log(f"   [X] Couldn't open the archive {name}: {e}")
+                    continue
+                with nested_zip_file as nested_zip:
                     _process_image_group(
                         nested_zip,
                         nested_zip.infolist(),

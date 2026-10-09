@@ -9,8 +9,8 @@ Motores de extraccion, en este orden:
   - 7z                        : py7zr (si esta instalado), luego 7-Zip
   - rar / cab / iso / otros   : 7-Zip (7z.exe) y, para rar, tambien rarfile (si hay unrar)
 
-7-Zip se busca en: vendor/ (junto a ffdec_lib.jar), PATH y C:\\Program Files\\7-Zip.
-Para soportar RAR sin instalar nada, copia 7z.exe y 7z.dll a la carpeta vendor/.
+7-Zip se busca en: 7zip/ (junto a este archivo, ya incluido en el payload), vendor/, PATH
+y C:\\Program Files\\7-Zip. El usuario no necesita instalar nada.
 """
 from __future__ import annotations
 
@@ -90,8 +90,12 @@ def is_archive(data: bytes, filename: str = "") -> bool:
 # ---------------------------------------------------------------- 7-Zip
 
 def _find_7z() -> str | None:
-    names = ["7z.exe", "7zz.exe", "7z", "7zz", "7za.exe", "7za"]
-    dirs: list[Path] = []
+    if sys.platform.startswith("win"):
+        names = ["7z.exe", "7zz.exe", "7za.exe"]
+    else:
+        names = ["7zz", "7z", "7za"]
+    # 1) 7zip/ junto al codigo (viaja dentro del payload y se actualiza con el); 2) vendor/
+    dirs: list[Path] = [Path(__file__).resolve().parent / "7zip"]
     if VENDOR_DIR:
         dirs += [VENDOR_DIR, VENDOR_DIR / "7zip", VENDOR_DIR / "7-Zip"]
     for d in dirs:
@@ -225,8 +229,8 @@ def _extract_rar_py(archive: Path, out: Path) -> bool:
 
 
 _NO_ENGINE_HELP = {
-    "rar": "To install .rar mods, put 7z.exe and 7z.dll (from 7-Zip) in the app's vendor folder, "
-           "or install 7-Zip (https://www.7-zip.org) on this PC. Then try again.",
+    "rar": "7-Zip is missing from the app folder (7zip/7z.exe and 7z.dll). Update the app, "
+           "or install 7-Zip (https://www.7-zip.org) on this PC, then try again.",
     "7z": "To install .7z mods, install the 'py7zr' Python package, or put 7z.exe and 7z.dll "
           "(from 7-Zip) in the app's vendor folder, or install 7-Zip on this PC.",
 }

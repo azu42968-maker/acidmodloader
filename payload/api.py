@@ -1,3 +1,5 @@
+import base64
+import binascii
 import re
 import shutil
 import sys
@@ -230,6 +232,90 @@ class Api:
             mod_registry.end()
             try:
                 mod_registry.commit(tracker, display_name, url, name, partial=failed)
+            except Exception as e:
+                log(f"[!] Couldn't save this install to the installed-mods list: {e}")
+
+        return {"ok": True, "log": log_lines}
+
+    def install_dropped_file(self, filename: str, b64_data: str) -> dict:
+        """Instala un archivo soltado en el drop zone (.zip/.rar/.7z, .swf suelto, .bmod).
+
+        El JS manda el nombre y el contenido en base64; aqui se reutiliza exactamente
+        la misma logica y el mismo registro de desinstalacion que install_mod.
+        """
+        name = Path(str(filename or "").replace("\\", "/")).name
+        if not name:
+            return {"ok": False, "log": ["[X] The dropped file has no name."]}
+        ext = Path(name).suffix.lower()
+
+        brawlhalla_path = self.cfg.get("brawlhalla_path")
+        if not brawlhalla_path or not Path(brawlhalla_path).is_dir():
+            return {
+                "ok": False,
+                "log": ["[X] No valid Brawlhalla folder is set. Use the folder button first."],
+            }
+
+        try:
+            data = base64.b64decode(b64_data or "")
+        except (binascii.Error, ValueError):
+            return {"ok": False, "log": [f"[X] Couldn't read the dropped file: {name}"]}
+        if not data:
+            return {"ok": False, "log": [f"[X] The dropped file is empty: {name}"]}
+
+        log_lines: list[str] = []
+
+        def log(msg: str) -> None:
+            log_lines.append(msg)
+
+        log(f"[i] Installing dropped file: {name}")
+
+        source = f"dropped://{name}"
+        previous = mod_registry.find_by_source(source)
+        if previous:
+            log("[i] This file was already installed - replacing the previous install.")
+            if not mod_registry.uninstall(previous["id"], log):
+                log("[!] Couldn't fully undo the previous install; continuing anyway.")
+            log("")
+
+        tracker = mod_registry.begin(Path(brawlhalla_path))
+        failed = True
+        try:
+            try:
+                if ext == ".swf":
+                    installer.install_loose_swf(data, name, Path(brawlhalla_path), log)
+                elif ext == ".bmod":
+                    with tempfile.NamedTemporaryFile(suffix=".bmod", delete=False) as tmp:
+                        tmp.write(data)
+                        tmp_bmod_path = Path(tmp.name)
+                    try:
+                        installer.install_bmod(
+                            data, tmp_bmod_path, Path(brawlhalla_path), log,
+                            ffdec_jar_path=self._resolve_ffdec_jar_path(),
+                            java_home=self._resolve_java_home(),
+                        )
+                    finally:
+                        tmp_bmod_path.unlink(missing_ok=True)
+                elif archive_utils.is_archive(data, name):
+                    zip_bytes = archive_utils.to_zip_bytes(data, name, log)
+                    installer.install_zip_mod(
+                        zip_bytes, Path(brawlhalla_path), log,
+                        ffdec_jar_path=self._resolve_ffdec_jar_path(),
+                        java_home=self._resolve_java_home(),
+                    )
+                else:
+                    log(f"[X] Unsupported file type: {ext or name}. Drop a .zip, .swf or .bmod.")
+                    return {"ok": False, "log": log_lines}
+                failed = False
+            except (installer.InstallError, archive_utils.ArchiveError) as e:
+                log(f"[X] {e}")
+                return {"ok": False, "log": log_lines}
+            except Exception as e:
+                log(f"[X] Unexpected error: {e}")
+                return {"ok": False, "log": log_lines}
+        finally:
+            mod_registry.end()
+            try:
+                mod_registry.commit(tracker, Path(name).stem[:120], source, name, partial=failed)
             except Exception as e:
                 log(f"[!] Couldn't save this install to the installed-mods list: {e}")
 

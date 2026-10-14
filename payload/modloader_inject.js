@@ -17,6 +17,19 @@
       font-weight:900;text-transform:uppercase;letter-spacing:.08em;box-shadow:0 10px 30px #0009;
       cursor:pointer;font-family:Oswald,Impact,Arial Narrow,sans-serif}
     .acid-loader-gb-fab:hover{background:#7a4b00;color:#fff}
+    .acid-loader-drop{position:fixed;left:24px;bottom:24px;z-index:40;width:340px;height:170px;box-sizing:border-box;
+      padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+      text-align:center;border:3px dashed #00ff00;border-radius:10px;
+      background:#111e;color:#00ff00;cursor:pointer;box-shadow:0 14px 40px #000b;
+      font-family:Oswald,Impact,Arial Narrow,sans-serif;text-transform:uppercase;letter-spacing:.08em;
+      transition:background .12s,transform .12s,width .12s,height .12s}
+    .acid-loader-drop .acid-drop-icon{font-size:2.6rem;line-height:1}
+    .acid-loader-drop strong{font-size:1.15rem;font-weight:900}
+    .acid-loader-drop span{font-size:.75rem;color:#7fbf8a;letter-spacing:.06em}
+    .acid-loader-drop:hover{background:#1b5e20;color:#fff}
+    .acid-loader-drop.is-over{background:#00ff00;color:#111;width:420px;height:220px;border-style:solid}
+    .acid-loader-drop.is-over span{color:#083}
+    .acid-loader-drop.is-busy{opacity:.8;pointer-events:none;border-color:#ffb400;color:#ffb400}
     .acid-loader-navbar{position:fixed;top:8px;left:8px;z-index:2147483000;display:flex;
       background:#111d;border:1px solid #0f04;border-radius:6px;overflow:hidden;
       box-shadow:0 6px 18px #0009}
@@ -110,6 +123,97 @@
     window.pywebview.api.navigate("https://gamebanana.com/mods/games/5704");
   });
   document.body.appendChild(gbFab);
+
+  // ---- Drop zone: suelta .zip / .swf / .bmod para instalarlos ----
+  const dropZone = document.createElement("div");
+  dropZone.className = "acid-loader-drop";
+  dropZone.innerHTML = `<div class="acid-drop-icon">⬇</div><strong>Drop mod here</strong><span>.zip · .swf · .bmod — or click</span>`;
+  document.body.appendChild(dropZone);
+
+  const dropInput = document.createElement("input");
+  dropInput.type = "file";
+  dropInput.multiple = true;
+  dropInput.accept = ".zip,.rar,.7z,.swf,.bmod";
+  dropInput.style.display = "none";
+  document.body.appendChild(dropInput);
+
+  const DROP_IDLE_HTML = dropZone.innerHTML;
+  let dropBusy = false;
+
+  function readAsBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const text = String(reader.result);
+        resolve(text.slice(text.indexOf(",") + 1));
+      };
+      reader.onerror = () => reject(reader.error || new Error("Couldn't read " + file.name));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function installDropped(fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length || dropBusy) return;
+    dropBusy = true;
+    dropZone.classList.remove("is-over");
+    dropZone.classList.add("is-busy");
+
+    const allLog = [];
+    let allOk = true;
+    try {
+      for (const file of files) {
+        dropZone.innerHTML = `<div class="acid-drop-icon">⏳</div><strong>Installing…</strong><span>${file.name.replace(/[<&]/g, "")}</span>`;
+        allLog.push(`=== ${file.name} ===`);
+        try {
+          const b64 = await readAsBase64(file);
+          const result = await window.pywebview.api.install_dropped_file(file.name, b64);
+          if (!(result && result.ok)) allOk = false;
+          allLog.push(...((result && result.log) || ["Unknown error."]));
+        } catch (err) {
+          allOk = false;
+          allLog.push("[X] " + String(err));
+        }
+        allLog.push("");
+      }
+    } finally {
+      dropBusy = false;
+      dropZone.classList.remove("is-busy");
+      dropZone.innerHTML = DROP_IDLE_HTML;
+      dropInput.value = "";
+    }
+    showLog(allOk ? "Installed" : "Install finished with errors", allLog, allOk);
+  }
+
+  function dragHasFiles(event) {
+    const types = event.dataTransfer && event.dataTransfer.types;
+    return !!types && Array.from(types).includes("Files");
+  }
+
+  // Evita que WebView2 navegue al archivo si se suelta fuera de la zona;
+  // soltar en cualquier parte de la ventana instala el archivo.
+  window.addEventListener("dragenter", event => {
+    if (!dragHasFiles(event)) return;
+    event.preventDefault();
+    dropZone.classList.add("is-over");
+  });
+  window.addEventListener("dragover", event => {
+    if (!dragHasFiles(event)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    dropZone.classList.add("is-over");
+  });
+  window.addEventListener("dragleave", event => {
+    if (!event.relatedTarget) dropZone.classList.remove("is-over");
+  });
+  window.addEventListener("drop", event => {
+    if (!dragHasFiles(event)) return;
+    event.preventDefault();
+    installDropped(event.dataTransfer.files);
+  });
+
+  dropZone.addEventListener("click", () => dropInput.click());
+  dropInput.addEventListener("change", () => installDropped(dropInput.files));
 
   function setButtonState(link, state, text) {
     link.dataset.acidState = state;

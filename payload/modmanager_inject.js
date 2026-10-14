@@ -36,7 +36,9 @@
     .acid-mm-btn:hover:not(:disabled){background:#ff5c5c;color:#1a0000}
     .acid-mm-btn:disabled{opacity:.45;cursor:default}
     #acid-mm-empty{margin:22px 0 6px;color:#9a9a9a;line-height:1.5}
-    #acid-mm-foot{display:flex;justify-content:flex-end;margin-top:16px}
+    #acid-mm-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px}
+    .acid-mm-btn.acid-mm-btn-accent{color:#00ff00;border-color:#00ff00}
+    .acid-mm-btn.acid-mm-btn-accent:hover:not(:disabled){background:#00ff00;color:#111}
     #acid-mm-log{white-space:pre-wrap;font-family:Consolas,Menlo,monospace;font-size:.8rem;
       color:#00ff00;max-height:22vh;overflow:auto;margin:16px 0 0}
   `;
@@ -50,7 +52,10 @@
     <p class="acid-mm-sub" id="acid-mm-sub"></p>
     <ul id="acid-mm-list"></ul>
     <p id="acid-mm-empty" hidden>No mods installed yet. Mods you install with this app show up here, and uninstalling one puts the original game files back.</p>
-    <div id="acid-mm-foot"><button class="acid-mm-btn" type="button" id="acid-mm-all">Uninstall all</button></div>
+    <div id="acid-mm-foot">
+      <button class="acid-mm-btn acid-mm-btn-accent" type="button" id="acid-mm-color" title="After a Brawlhalla update: re-detect the new internal identifiers and relink your already-installed color mod (UI_MainMenu.swf)">Update Color Mod</button>
+      <button class="acid-mm-btn" type="button" id="acid-mm-all">Uninstall all</button>
+    </div>
     <pre id="acid-mm-log" hidden></pre>
   `;
   document.body.appendChild(dialog);
@@ -59,6 +64,7 @@
   const emptyEl = dialog.querySelector("#acid-mm-empty");
   const subEl = dialog.querySelector("#acid-mm-sub");
   const allBtn = dialog.querySelector("#acid-mm-all");
+  const colorBtn = dialog.querySelector("#acid-mm-color");
   const logEl = dialog.querySelector("#acid-mm-log");
 
   dialog.querySelector(".acid-mm-close").addEventListener("click", () => dialog.close());
@@ -156,6 +162,20 @@
     showLog(["Uninstalling…"]);
     try {
       const result = await window.pywebview.api.uninstall_all_mods();
+      showLog(result.log);
+    } catch (err) {
+      showLog(["[X] " + String(err)]);
+    }
+    await refresh();
+    setBusy(false);
+  });
+
+  colorBtn.addEventListener("click", async () => {
+    if (!confirm("Update Color Mod?\n\nThis decompiles BrawlhallaAir.swf, detects the new internal identifiers and relinks your already-installed color mod (UI_MainMenu.swf). Your installed colors are kept.\nThis can take a few minutes — don't close the app. Close Brawlhalla first if it is running.")) return;
+    setBusy(true);
+    showLog(["Updating color mod… this can take a few minutes."]);
+    try {
+      const result = await window.pywebview.api.update_color_mod();
       showLog(result.log);
     } catch (err) {
       showLog(["[X] " + String(err)]);

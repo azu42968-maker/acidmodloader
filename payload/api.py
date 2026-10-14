@@ -11,6 +11,7 @@ import webview
 
 import adblock
 import archive_utils
+import color_relinker
 import installer
 import mod_registry
 import updater
@@ -255,6 +256,40 @@ class Api:
             return {"ok": False, "log": log_lines}
         log_lines.append(f"Uninstalled: {removed}   Failed: {failed}")
         return {"ok": failed == 0, "log": log_lines}
+
+    # ---- Update Color Mod (ver color_relinker.py) ----
+    def update_color_mod(self) -> dict:
+        brawlhalla_path = self.cfg.get("brawlhalla_path")
+        if not brawlhalla_path or not Path(brawlhalla_path).is_dir():
+            return {
+                "ok": False,
+                "log": ["[X] No valid Brawlhalla folder is set. Use the folder button first."],
+            }
+
+        log_lines: list[str] = []
+        tracker = mod_registry.begin(Path(brawlhalla_path))
+        ok = False
+        try:
+            try:
+                color_relinker.update_color_mod(
+                    Path(brawlhalla_path), _VENDOR_DIR, self._resolve_java_home(), log_lines.append,
+                )
+                ok = True
+            except color_relinker.ColorModError as e:
+                log_lines.append(f"[X] {e}")
+            except Exception as e:
+                log_lines.append(f"[X] Unexpected error: {e}")
+        finally:
+            mod_registry.end()
+            try:
+                mod_registry.commit(
+                    tracker, "Update Color Mod", "acid://update-color-mod",
+                    color_relinker.MAINMENU_SWF_NAME, partial=not ok,
+                )
+            except Exception as e:
+                log_lines.append(f"[!] Couldn't save this update to the installed-mods list: {e}")
+
+        return {"ok": ok, "log": log_lines}
 
     # ---- Actualizaciones del payload (ver updater.py) ----
     def get_app_version(self) -> str:

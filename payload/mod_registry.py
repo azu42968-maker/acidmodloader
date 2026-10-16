@@ -12,6 +12,8 @@ from appdirs import get_appdata_dir
 REGISTRY_PATH = get_appdata_dir() / "installed_mods.json"
 BACKUPS_DIR = get_appdata_dir() / "backups"
 
+_JUNK_FILES = {"thumbs.db", "desktop.ini", ".ds_store"}
+
 _lock = threading.RLock()
 _local = threading.local()
 
@@ -147,10 +149,31 @@ def _remove_empty_dirs(root: Path, rels: list[str]) -> None:
     for rel in sorted(rels, key=lambda r: r.count("/"), reverse=True):
         d = root / rel
         try:
-            if d.is_dir() and not any(d.iterdir()):
+            if not d.is_dir():
+                continue
+            # OS junk files shouldn't keep an otherwise empty folder alive.
+            for child in d.iterdir():
+                if child.is_file() and child.name.lower() in _JUNK_FILES:
+                    child.unlink(missing_ok=True)
+            if not any(d.iterdir()):
                 d.rmdir()
         except OSError:
             pass
+
+
+def _hand_over_dirs(root: Path, mod: dict, later: list[dict]) -> None:
+    """Folders this mod created that are still in use pass to the next mod
+    that owns files inside them, so they get cleaned up when that one goes."""
+    for rel in mod.get("created_dirs", []):
+        d = root / rel
+        if not d.is_dir():
+            continue
+        for m in later:
+            if any(f["rel"].startswith(rel + "/") for f in m["files"]):
+                dirs = m.setdefault("created_dirs", [])
+                if rel not in dirs:
+                    dirs.append(rel)
+                break
 
 
 def uninstall(mod_id: str, log) -> bool:
@@ -223,6 +246,7 @@ def uninstall(mod_id: str, log) -> bool:
             return False
 
         _remove_empty_dirs(root, mod.get("created_dirs", []))
+        _hand_over_dirs(root, mod, later)
         mods.pop(idx)
         _save(data)
 

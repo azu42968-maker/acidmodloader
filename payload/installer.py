@@ -58,11 +58,27 @@ def get_target_folder_by_intersection(infos, name_index: dict, bg_entry_name: st
             break
     if len(common) == 1:
         return next(iter(common))
+
+    # Intersection failed (e.g. one file of the mod doesn't exist in this game
+    # version): pick the folder that holds the most of the mod's files.
+    votes: dict[Path, int] = {}
+    for s in folder_sets:
+        for folder in s:
+            votes[folder] = votes.get(folder, 0) + 1
+    best = max(votes.values())
+    winners = [f for f, n in votes.items() if n == best]
+    if len(winners) == 1 and len(folder_sets) > 1 and best >= 2:
+        return winners[0]
     return None
 
 
 def _find_bg_entry_name(infos) -> str | None:
-    for name, _info in _image_entries(infos):
+    entries = _image_entries(infos)
+    names = [n for n, _ in entries]
+    # If every image is a background, there is no "odd one out" to exclude.
+    if names and all(n.lower().startswith("bg") for n in names):
+        return None
+    for name in names:
         if name.lower().startswith("bg"):
             return name
     return None
@@ -151,6 +167,7 @@ def install_zip_mod(
 
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as mods_zip:
         top_level_image_infos = []
+        folder_image_infos: dict[str, list] = {}
 
         for info in mods_zip.infolist():
             raw_path = info.filename.replace("\\", "/")
@@ -226,15 +243,31 @@ def install_zip_mod(
             if ext in IMAGE_EXTS:
                 rel_parts = [p for p in Path(raw_path).parts if p not in ("", ".")]
                 if len(rel_parts) > 1:
-                    rel_path = Path(*rel_parts)
-                    dest = brawlhalla_folder / rel_path
-                    with mods_zip.open(info) as src:
-                        mod_registry.write_bytes(dest, src.read())
-                    copied_direct.append((str(rel_path), dest))
+                    dest = brawlhalla_folder / Path(*rel_parts)
+                    if dest.is_file():
+                        # The zip already uses the real packaged path.
+                        with mods_zip.open(info) as src:
+                            mod_registry.write_bytes(dest, src.read())
+                        copied_direct.append((str(Path(*rel_parts)), dest))
+                    else:
+                        # Folder inside the zip is only a grouping (e.g. "Tekken/"):
+                        # resolve the real files inside mapart/ by name.
+                        folder_image_infos.setdefault(rel_parts[0], []).append(info)
                     continue
 
                 top_level_image_infos.append(info)
                 continue
+
+        for folder_name, folder_infos in folder_image_infos.items():
+            _process_image_group(
+                mods_zip,
+                folder_infos,
+                name_index,
+                folder_name,
+                replaced_images,
+                missing_images,
+                skipped_multi,
+            )
 
         if top_level_image_infos:
             _process_image_group(

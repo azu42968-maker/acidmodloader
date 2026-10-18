@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Subir a GitHub
+Exec=/home/azu/azu42968-maker/acidmodloader/subir_a_github.sh
+Path=/home/azu/azu42968-maker/acidmodloader
+Terminal=true
+Icon=/home/azu/azu42968-maker/acidmodloader/icon.ico

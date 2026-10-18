@@ -129,10 +129,54 @@
     document.getElementById("acid-loader-fab-path").textContent = "Brawlhalla: " + shortenPath(path);
   }
 
-  fab.addEventListener("click", async () => {
-    await window.pywebview.api.pick_brawlhalla_folder();
-    refreshFabPath();
-  });
+
+  function openPathDialog(onDone) {
+    if (document.getElementById("acid-path-overlay")) return;
+    const overlay = document.createElement("div");
+    overlay.id = "acid-path-overlay";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2147483647;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif;";
+    overlay.innerHTML = `
+      <div style="background:#14161a;color:#e8e8e8;border:1px solid #2c3037;border-radius:10px;padding:18px;width:min(560px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.6)">
+        <div style="font-weight:600;margin-bottom:8px">📁 Carpeta de Brawlhalla</div>
+        <input id="acid-path-input" type="text" spellcheck="false" autocomplete="off"
+          placeholder="/home/usuario/.local/share/Steam/steamapps/common/Brawlhalla"
+          style="width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #3a3f48;background:#0b0c0f;color:#fff;font-family:monospace;font-size:13px">
+        <div id="acid-path-msg" style="min-height:18px;margin:8px 0;font-size:12px;color:#ff8a8a"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button type="button" id="acid-path-browse" style="padding:7px 12px;border-radius:6px;border:1px solid #3a3f48;background:#1d2127;color:#ddd;cursor:pointer">Examinar…</button>
+          <button type="button" id="acid-path-cancel" style="padding:7px 12px;border-radius:6px;border:1px solid #3a3f48;background:#1d2127;color:#ddd;cursor:pointer">Cancelar</button>
+          <button type="button" id="acid-path-save" style="padding:7px 14px;border-radius:6px;border:0;background:#7c4dff;color:#fff;cursor:pointer;font-weight:600">Guardar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const input = overlay.querySelector("#acid-path-input");
+    const msg = overlay.querySelector("#acid-path-msg");
+    const close = () => overlay.remove();
+    window.pywebview.api.get_brawlhalla_path().then((p) => { input.value = p || ""; input.select(); });
+    input.focus();
+
+    async function save() {
+      const res = await window.pywebview.api.set_brawlhalla_path(input.value);
+      if (!res.ok) { msg.style.color = "#ff8a8a"; msg.textContent = res.error; return; }
+      if (res.warning) { msg.style.color = "#ffd27a"; msg.textContent = res.warning; setTimeout(close, 1800); }
+      else close();
+      onDone && onDone();
+    }
+    overlay.querySelector("#acid-path-save").addEventListener("click", save);
+    overlay.querySelector("#acid-path-cancel").addEventListener("click", close);
+    overlay.querySelector("#acid-path-browse").addEventListener("click", async () => {
+      const p = await window.pywebview.api.pick_brawlhalla_folder();
+      if (p) input.value = p;
+    });
+    overlay.addEventListener("mousedown", (e) => { if (e.target === overlay) close(); });
+    input.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Enter") save();
+      if (e.key === "Escape") close();
+    });
+  }
+
+  fab.addEventListener("click", () => openPathDialog(refreshFabPath));
   refreshFabPath();
 
   const backFab = document.createElement("button");

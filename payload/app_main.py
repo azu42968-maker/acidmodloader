@@ -1,3 +1,4 @@
+import sys
 import urllib.parse
 from pathlib import Path
 
@@ -45,7 +46,8 @@ def main() -> None:
 
     window.events.loaded += inject
 
-    webview.start(debug=False, gui="edgechromium")
+    # Windows: WebView2. Linux/macOS: pywebview elige GTK (WebKit2) o Qt solo.
+    webview.start(debug=False, gui="edgechromium" if sys.platform == "win32" else None)
 
 
 if __name__ == "__main__":

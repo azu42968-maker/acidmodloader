@@ -236,6 +236,7 @@ class SwfHandle:
         self.symbol_class = None
         self._symbol_class_tag = None
         self.elements_by_id: dict[int, object] = {}
+        self._next_id: int | None = None
 
     def open(self):
         stream = BufferedInputStream(FileInputStream(self.path))
@@ -254,6 +255,18 @@ class SwfHandle:
                 eid = _get_element_id(tag)
                 if eid is not None:
                     self.elements_by_id[eid] = tag
+
+        # Los SWF del juego traen entradas de SymbolClass "colgadas" (ids que ya no
+        # existen como personaje, p. ej. 2909-3017). getNextCharacterId() sólo mira los
+        # personajes definidos, así que devolvería un id que un símbolo ya reclama y esa
+        # clase quedaría atada a un shape del mod (rompe la carga del SWF).
+        # Por eso arrancamos por encima de cualquier id usado, definido o referenciado.
+        used_max = max(
+            [int(self._swf.getNextCharacterId()) - 1]
+            + list(self.elements_by_id)
+            + list(self.symbol_class.values())
+        )
+        self._next_id = used_max + 1
         return self
 
     def id_for_anchor(self, anchor: str) -> int | None:
@@ -263,11 +276,19 @@ class SwfHandle:
         return self.elements_by_id.get(elid)
 
     def next_character_id(self) -> int:
-        return int(self._swf.getNextCharacterId())
+        # Contador propio: no depende de la caché interna de FFDec, que no siempre se
+        # actualiza entre addTag() y el cambio de id del clon (provocaba ids repetidos).
+        nid = self._next_id
+        self._next_id += 1
+        return nid
 
-    def clone_and_add(self, element, new_id: int):
+    def clone_and_add(self, element, new_id: int, before=None):
         clone = element.cloneTag()
-        self._swf.addTag(clone)
+        idx = int(self._swf.getTags().indexOf(before)) if before is not None else -1
+        if idx >= 0:
+            self._swf.addTag(idx, clone)
+        else:
+            self._swf.addTag(clone)
         _set_element_id(clone, new_id)
         self.elements_by_id[new_id] = clone
         return clone
@@ -327,7 +348,11 @@ def import_sprite(game: SwfHandle, mod: SwfHandle, anchor: str, elements_map: di
     clone_sprites = []
     clone_shapes = []
 
+    # El sprite del mod va al final de la lista para que sus dependencias (shapes y
+    # sprites hijos) se inserten ANTES de la posición del sprite original.
     needed_ids = [*_needed_character_ids(mod_sprite), mod_sprite_id]
+    needed_ids = [i for i in needed_ids if i != mod_sprite_id] + [mod_sprite_id]
+    anchor_tag = orig_sprite
     for needed_id in needed_ids:
         if needed_id in elements_map:
             continue
@@ -339,13 +364,13 @@ def import_sprite(game: SwfHandle, mod: SwfHandle, anchor: str, elements_map: di
         if needed_id == mod_sprite_id:
             new_id = orig_id
             clone_el = mod_element.cloneTag()
-            game._swf.addTag(clone_el)
             game.replace(orig_sprite, clone_el)
             _set_element_id(clone_el, orig_id)
             game.elements_by_id[orig_id] = clone_el
+            anchor_tag = clone_el
         else:
             new_id = game.next_character_id()
-            clone_el = game.clone_and_add(mod_element, new_id)
+            clone_el = game.clone_and_add(mod_element, new_id, before=anchor_tag)
 
         elements_map[needed_id] = new_id
 
@@ -384,7 +409,6 @@ def import_sound(game: SwfHandle, mod: SwfHandle, anchor: str) -> bool:
     game.clone_and_add(orig_sound, preserved_id)
 
     clone = mod_sound.cloneTag()
-    game._swf.addTag(clone)
     game.replace(orig_sound, clone)
     _set_element_id(clone, orig_id)
     game.elements_by_id[orig_id] = clone

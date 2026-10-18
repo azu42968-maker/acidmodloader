@@ -63,6 +63,8 @@ def check() -> dict:
     """Consulta el manifest del último release."""
     global _last_manifest
     cur = current_version()
+    if sys.platform != "win32":
+        return {"current": cur, "latest": cur, "available": False, "notes": "", "needs_new_exe": False}
     try:
         with _open(f"{BASE}/manifest.json") as r:
             m = json.loads(r.read().decode("utf-8"))

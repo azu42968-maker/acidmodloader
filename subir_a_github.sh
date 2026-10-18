@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# Trabaja siempre en la carpeta donde esta este script
+cd "$(dirname "$(readlink -f "$0")")" || exit 1
+
+echo "========================================"
+echo "  Subir web a GitHub"
+echo "  Carpeta: $PWD"
+echo "========================================"
+echo
+
+# --- Comprobar que Git esta instalado ---
+if ! command -v git >/dev/null 2>&1; then
+  echo "[ERROR] Git no esta instalado."
+  echo "En Bazzite/Fedora Atomic: usa 'brew install git' o corre este script dentro de distrobox."
+  read -rp "Pulsa Enter para salir..." _
+  exit 1
+fi
+
+# --- Nombre y correo de Git, solo si faltan ---
+if [ -z "$(git config --global user.name)" ]; then
+  read -rp "Tu nombre para los commits: " GIT_NAME
+  git config --global user.name "$GIT_NAME"
+fi
+if [ -z "$(git config --global user.email)" ]; then
+  read -rp "Tu correo de GitHub: " GIT_MAIL
+  git config --global user.email "$GIT_MAIL"
+fi
+
+# --- Inicializar repositorio la primera vez ---
+if [ ! -d .git ]; then
+  echo "Primera vez: inicializando repositorio..."
+  git init
+  git branch -M main
+fi
+
+# --- Repositorio de destino ---
+REPO_URL="https://github.com/azu42968-maker/acidmodloader.git"
+if git remote get-url origin >/dev/null 2>&1; then
+  git remote set-url origin "$REPO_URL"
+else
+  git remote add origin "$REPO_URL"
+fi
+
+# --- Aviso si falta el .gitignore (sin el, se subiria todo) ---
+if [ ! -f .gitignore ]; then
+  echo "[AVISO] No hay .gitignore: se subiria todo, incluidos dist, .build-venv y el JRE."
+  echo "        Copia el .gitignore del proyecto y vuelve a ejecutar."
+  read -rp "Pulsa Enter para salir..." _
+  exit 1
+fi
+
+# --- Sacar del repo lo que ya estaba subido pero ahora esta ignorado ---
+# (no borra nada de tu disco, solo deja de rastrearlo en git)
+echo "Limpiando archivos innecesarios del repositorio..."
+git rm -r --cached -q --ignore-unmatch dist build .build-venv .build-python312 release \
+  vendor/jre config.json AcidModLoader.spec __pycache__ payload/__pycache__ >/dev/null 2>&1
+
+# --- Anadir cambios y hacer commit ---
+git add -A
+echo
+echo "Resumen de lo que se va a subir:"
+git diff --cached --shortstat
+echo
+if ! git diff --cached --quiet; then
+  read -rp "Mensaje del commit, Enter para usar fecha y hora: " MSG
+  [ -z "$MSG" ] && MSG="Actualizacion $(date '+%d/%m/%Y %H:%M:%S')"
+  git commit -m "$MSG"
+else
+  echo "No hay cambios nuevos que commitear."
+fi
+
+ok() {
+  echo
+  echo "Listo, subido correctamente."
+  read -rp "Pulsa Enter para salir..." _
+  exit 0
+}
+
+fallo() {
+  echo
+  echo "[ERROR] No se pudo subir. Revisa tu login de GitHub y el mensaje de arriba."
+  read -rp "Pulsa Enter para salir..." _
+  exit 1
+}
+
+# --- Subir ---
+echo
+echo "Subiendo a GitHub..."
+git push -u origin main && ok
+
+echo
+echo "[!] GitHub rechazo el push: el repo remoto tiene commits que no tienes aqui."
+echo
+echo "  [1] Unir y quedarme con MIS archivos   (seguro, no se pierde historial)"
+echo "  [2] Reemplazar el remoto con lo mio    (borra el historial viejo de main)"
+echo "  [N] Cancelar"
+echo
+read -rp "Elige 1, 2 o N: " OPT
+case "${OPT,,}" in
+  1)
+    echo
+    echo "Uniendo historiales..."
+    git fetch origin || fallo
+    git merge -s ours origin/main --allow-unrelated-histories \
+      -m "Unir historial remoto (se conservan los archivos locales)" || fallo
+    git push -u origin main || fallo
+    ok
+    ;;
+  2)
+    echo
+    echo "Reemplazando el remoto con tu version..."
+    git fetch origin || fallo
+    git push -u origin main --force-with-lease || fallo
+    ok
+    ;;
+  *)
+    echo
+    echo "Cancelado. No se subio nada."
+    read -rp "Pulsa Enter para salir..." _
+    exit 0
+    ;;
+esac

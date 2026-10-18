@@ -1,5 +1,6 @@
 import base64
 import binascii
+import os
 import re
 import shutil
 import sys
@@ -77,8 +78,35 @@ STEAM_CANDIDATES = [
 ]
 
 
+def _linux_steam_candidates() -> list[str]:
+    home = Path.home()
+    roots = [
+        home / ".local/share/Steam",
+        home / ".steam/steam",
+        home / ".steam/root",
+        home / ".var/app/com.valvesoftware.Steam/.local/share/Steam",
+    ]
+    libs: list[Path] = []
+    for root in roots:
+        libs.append(root)
+        vdf = root / "steamapps" / "libraryfolders.vdf"
+        try:
+            for m in re.finditer(r'"path"\s+"([^"]+)"', vdf.read_text(encoding="utf-8", errors="ignore")):
+                libs.append(Path(m.group(1)))
+        except OSError:
+            pass
+    seen, out = set(), []
+    for lib in libs:
+        c = str(lib / "steamapps" / "common" / "Brawlhalla")
+        if c not in seen:
+            seen.add(c)
+            out.append(c)
+    return out
+
+
 def autodetect_brawlhalla_folder() -> str | None:
-    for candidate in STEAM_CANDIDATES:
+    candidates = STEAM_CANDIDATES if sys.platform == "win32" else _linux_steam_candidates()
+    for candidate in candidates:
         if Path(candidate).is_dir():
             return candidate
     return None
@@ -131,7 +159,8 @@ class Api:
         configured = self.cfg.get("java_home")
         if configured and Path(configured).is_dir():
             return configured
-        if DEFAULT_JAVA_HOME.is_dir():
+        # El JRE de vendor/ es de Windows; en Linux se usa el Java del sistema.
+        if sys.platform == "win32" and DEFAULT_JAVA_HOME.is_dir():
             return str(DEFAULT_JAVA_HOME)
         return None
 
@@ -142,6 +171,22 @@ class Api:
             self.cfg["brawlhalla_path"] = path
             save_config(self.cfg)
         return self.get_brawlhalla_path()
+
+    def set_brawlhalla_path(self, path: str) -> dict:
+        """Guarda una ruta escrita/pegada a mano (acepta ~ y comillas)."""
+        raw = str(path or "").strip().strip("\"'")
+        if not raw:
+            return {"ok": False, "error": "Escribe o pega una ruta."}
+        if raw.lower().startswith("file://"):
+            raw = urllib.parse.unquote(urllib.parse.urlparse(raw).path)
+        folder = Path(os.path.expandvars(os.path.expanduser(raw)))
+        if not folder.is_dir():
+            return {"ok": False, "error": f"Esa carpeta no existe: {folder}"}
+        self.cfg["brawlhalla_path"] = str(folder)
+        save_config(self.cfg)
+        warning = "" if (folder / "mapart").is_dir() else \
+            "Guardada, pero no veo la carpeta 'mapart' ahi dentro. Revisa que sea la carpeta de Brawlhalla."
+        return {"ok": True, "path": str(folder), "warning": warning}
 
     def navigate(self, url: str) -> bool:
         parsed = urllib.parse.urlparse(url)

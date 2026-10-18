@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Publicar update
+Exec=bash -c './publicar_update.sh; echo; read -rp "Pulsa Enter para salir..." _'
+Path=/home/azu/azu42968-maker/acidmodloader
+Terminal=true
+Icon=/home/azu/azu42968-maker/acidmodloader/icon.ico

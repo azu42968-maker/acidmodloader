@@ -13,6 +13,7 @@ agregar las suyas en %LOCALAPPDATA%\\AcidModLoader\\adblock_user.json.
 from __future__ import annotations
 
 import json
+import sys
 import threading
 import urllib.parse
 from collections import Counter
@@ -69,6 +70,8 @@ def _find_control(window):
 
 
 def _install_native(window) -> None:
+    if sys.platform != "win32":
+        raise RuntimeError("bloqueo de red solo en WebView2 (Windows); se usa solo CSS")
     from System import Action  # pythonnet (ya viene con pywebview)
 
     native, control = _find_control(window)

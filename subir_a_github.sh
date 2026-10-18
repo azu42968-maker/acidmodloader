@@ -83,10 +83,59 @@ fallo() {
   exit 1
 }
 
+# --- Login a GitHub (abre Firefox) ---
+abrir_navegador() {
+  if command -v firefox >/dev/null 2>&1; then
+    export GH_BROWSER="firefox"
+  elif command -v flatpak >/dev/null 2>&1 && flatpak info org.mozilla.firefox >/dev/null 2>&1; then
+    export GH_BROWSER="flatpak run org.mozilla.firefox"
+  fi
+}
+
+asegurar_login() {
+  if ! command -v gh >/dev/null 2>&1; then
+    if command -v brew >/dev/null 2>&1; then
+      echo "Instalando GitHub CLI (gh) con brew..."
+      brew install gh || return 1
+    else
+      echo "[AVISO] No hay 'gh' ni 'brew'. Instala gh o usa un token de GitHub como contrasena."
+      return 1
+    fi
+  fi
+  if ! gh auth status >/dev/null 2>&1; then
+    echo
+    echo "Hay que iniciar sesion en GitHub. Se abrira Firefox:"
+    echo "copia el codigo que aparece aqui, pegalo en la pagina y autoriza."
+    abrir_navegador
+    gh auth login --hostname github.com --git-protocol https --web || return 1
+  fi
+  gh auth setup-git >/dev/null 2>&1
+  return 0
+}
+
+asegurar_login
+
 # --- Subir ---
+hacer_push() {
+  PUSH_OUT=$(LC_ALL=C git push -u origin main 2>&1)
+  local rc=$?
+  echo "$PUSH_OUT"
+  return $rc
+}
+
 echo
 echo "Subiendo a GitHub..."
-git push -u origin main && ok
+hacer_push && ok
+
+# Fallo de autenticacion: iniciar sesion y reintentar una vez
+if echo "$PUSH_OUT" | grep -qiE "Authentication failed|Invalid username or token|could not read Username"; then
+  echo
+  echo "[!] Falta iniciar sesion en GitHub."
+  gh auth logout --hostname github.com >/dev/null 2>&1
+  asegurar_login || fallo
+  hacer_push && ok
+  echo "$PUSH_OUT" | grep -qiE "Authentication failed|Invalid username or token" && fallo
+fi
 
 echo
 echo "[!] GitHub rechazo el push: el repo remoto tiene commits que no tienes aqui."

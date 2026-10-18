@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Trabaja siempre en la carpeta donde esta este script
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
+export PATH="$HOME/.local/bin:/home/linuxbrew/.linuxbrew/bin:$PATH"
 
 echo "========================================"
 echo "  Subir web a GitHub"
@@ -92,14 +93,28 @@ abrir_navegador() {
   fi
 }
 
+instalar_gh() {
+  echo "Descargando GitHub CLI (gh) a ~/.local/bin ..."
+  mkdir -p "$HOME/.local/bin"
+  local url tmp ver
+  # La redireccion de /releases/latest trae la version (sin usar la API, que limita)
+  ver=$(curl -fsSIL -o /dev/null -w '%{url_effective}' https://github.com/cli/cli/releases/latest | sed 's#.*/tag/v##')
+  [ -z "$ver" ] && { echo "[ERROR] No pude obtener la version de gh."; return 1; }
+  url="https://github.com/cli/cli/releases/download/v${ver}/gh_${ver}_linux_amd64.tar.gz"
+  tmp=$(mktemp -d)
+  curl -fsSL "$url" -o "$tmp/gh.tar.gz" || return 1
+  tar xzf "$tmp/gh.tar.gz" -C "$tmp" || return 1
+  cp "$tmp"/gh_*/bin/gh "$HOME/.local/bin/gh" && chmod +x "$HOME/.local/bin/gh"
+  rm -rf "$tmp"
+  command -v gh >/dev/null 2>&1
+}
+
 asegurar_login() {
   if ! command -v gh >/dev/null 2>&1; then
     if command -v brew >/dev/null 2>&1; then
-      echo "Instalando GitHub CLI (gh) con brew..."
-      brew install gh || return 1
+      brew install gh || instalar_gh || return 1
     else
-      echo "[AVISO] No hay 'gh' ni 'brew'. Instala gh o usa un token de GitHub como contrasena."
-      return 1
+      instalar_gh || return 1
     fi
   fi
   if ! gh auth status >/dev/null 2>&1; then
@@ -117,7 +132,7 @@ asegurar_login
 
 # --- Subir ---
 hacer_push() {
-  PUSH_OUT=$(LC_ALL=C git push -u origin main 2>&1)
+  PUSH_OUT=$(LC_ALL=C.UTF-8 git push -u origin main 2>&1)
   local rc=$?
   echo "$PUSH_OUT"
   return $rc

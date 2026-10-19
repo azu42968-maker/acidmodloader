@@ -1,0 +1,43 @@
+name: Build AcidModLoader
+
+on:
+  workflow_dispatch:        # boton "Run workflow" en GitHub
+  push:
+    tags: ["v*"]            # al subir un tag v1.0.0 tambien crea el Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # build_exe.py crea su propio venv, instala requirements.txt, baja el JRE
+      # y corre PyInstaller. --no-pause evita el "Presiona Enter" del doble clic.
+      - name: Construir
+        run: python build_exe.py --no-pause
+
+      - name: Empaquetar (exe + .bat que instala los runtimes)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force Ejecutables | Out-Null
+          Compress-Archive -Force -DestinationPath Ejecutables/AcidModLoaderWin.zip -Path "dist/AcidModLoader.exe","dist/Run AcidModLoader.bat"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AcidModLoader-Win
+          path: Ejecutables/AcidModLoaderWin.zip
+
+      - name: Publicar Release (solo con tag v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Ejecutables/AcidModLoaderWin.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+permissions:
+  contents: write

@@ -10,3 +10,6 @@ __pycache__/
 
 # Config local
 config.json
+Ejecutables/
+vendor/jre/
+payload/*.zip

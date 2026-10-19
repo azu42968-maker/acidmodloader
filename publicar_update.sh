@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+export PATH="$HOME/.local/bin:/home/linuxbrew/.linuxbrew/bin:$PATH"
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 echo "========================================"

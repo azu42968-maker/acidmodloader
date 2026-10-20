@@ -46,6 +46,11 @@ jobs:
       - name: Listar
         run: ls -la Ejecutables
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AcidModLoader-Todos
+          path: Ejecutables/*
+
       - name: Publicar en el release latest (archivos separados)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

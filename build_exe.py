@@ -395,20 +395,16 @@ def _package() -> None:
        Win -> AcidModLoaderWin.zip (exe + .bat), Lin -> AcidModLoaderLin, Mac -> AcidModLoaderMac.zip"""
     OUT_DIR.mkdir(exist_ok=True)
     final = OUT_DIR / (
-        "AcidModLoaderWin.zip" if IS_WIN else ("AcidModLoaderMac.zip" if IS_MAC else "AcidModLoaderLin")
+        "AcidModLoaderWin.exe" if IS_WIN else ("AcidModLoaderMac.zip" if IS_MAC else "AcidModLoaderLin")
     )
     if final.exists():
         final.unlink()
 
     if IS_WIN:
         exe = DIST_DIR / "AcidModLoader.exe"
-        bat = DIST_DIR / _LAUNCHER_BAT_NAME
-        for f in (exe, bat):
-            if not f.is_file():
-                raise SystemExit(f"[X] Falta {f}")
-        with zipfile.ZipFile(final, "w", zipfile.ZIP_DEFLATED) as zf:
-            zf.write(exe, exe.name)
-            zf.write(bat, bat.name)
+        if not exe.is_file():
+            raise SystemExit(f"[X] Falta {exe}")
+        shutil.copy2(exe, final)
     elif IS_MAC:
         app = DIST_DIR / "AcidModLoader.app"
         if not app.is_dir():

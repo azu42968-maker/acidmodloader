@@ -1,13 +1,17 @@
 name: Build AcidModLoader
 
 on:
-  workflow_dispatch:        # boton "Run workflow" en GitHub
+  workflow_dispatch:
   push:
-    tags: ["v*"]            # al subir un tag v1.0.0 tambien crea el Release
+    tags: ["v*"]
 
 jobs:
   build:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-22.04, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -15,27 +19,48 @@ jobs:
         with:
           python-version: "3.12"
 
-      # build_exe.py crea su propio venv, instala requirements.txt, baja el JRE
-      # y corre PyInstaller. --no-pause evita el "Presiona Enter" del doble clic.
+      - name: Dependencias del sistema (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binutils libegl1 libgl1 libxkbcommon-x11-0 libxcb-cursor0 libdbus-1-3 libnss3 libasound2
+
       - name: Construir
         run: python build_exe.py --no-pause
 
-      - name: Empaquetar (exe + .bat que instala los runtimes)
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force Ejecutables | Out-Null
-          Compress-Archive -Force -DestinationPath Ejecutables/AcidModLoaderWin.zip -Path "dist/AcidModLoader.exe","dist/Run AcidModLoader.bat"
-
       - uses: actions/upload-artifact@v4
         with:
-          name: AcidModLoader-Win
-          path: Ejecutables/AcidModLoaderWin.zip
+          name: AcidModLoader-${{ runner.os }}
+          path: Ejecutables/*
 
-      - name: Publicar Release (solo con tag v*)
+  publish:
+    needs: build
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: Ejecutables
+          merge-multiple: true
+
+      - name: Listar
+        run: ls -la Ejecutables
+
+      - name: Publicar en el release latest (archivos separados)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          chmod +x Ejecutables/AcidModLoaderLin || true
+          gh release view latest >/dev/null 2>&1 || \
+            gh release create latest --title "Latest" --notes "Ultimo build automatico" --target "${{ github.sha }}"
+          gh release upload latest Ejecutables/* --clobber
+
+      - name: Publicar Release de version (solo con tag v*)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: Ejecutables/AcidModLoaderWin.zip
+          files: Ejecutables/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

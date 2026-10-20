@@ -159,8 +159,9 @@ class Api:
         configured = self.cfg.get("java_home")
         if configured and Path(configured).is_dir():
             return configured
-        # El JRE de vendor/ es de Windows; en Linux se usa el Java del sistema.
-        if sys.platform == "win32" and DEFAULT_JAVA_HOME.is_dir():
+        # Los builds empaquetados traen el JRE de su propio sistema en vendor/jre
+        # (Win/Linux/Mac). Desde codigo fuente no existe y se usa el Java del sistema.
+        if DEFAULT_JAVA_HOME.is_dir():
             return str(DEFAULT_JAVA_HOME)
         return None
 

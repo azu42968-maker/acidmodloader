@@ -15,12 +15,20 @@ import zipfile
 from pathlib import Path
 from urllib.request import Request, urlopen
 
+IS_WIN = platform.system() == "Windows"
+IS_MAC = platform.system() == "Darwin"
+FINAL_SUFFIX = "Win" if IS_WIN else ("Mac" if IS_MAC else "Lin")
+
 ROOT = Path(__file__).resolve().parent
 VENDOR = ROOT / "vendor"
 JRE_DIR = VENDOR / "jre"
 FFDEC_JAR = VENDOR / "ffdec_lib.jar"
 DIST_DIR = ROOT / "dist"
 ICON_FILE = ROOT / "icon.ico"
+ICON_MAC = ROOT / "icon.icns"
+OUT_DIR = ROOT / "Ejecutables"
+# Extras de pip por sistema (pywebview necesita un backend grafico en Linux)
+EXTRA_PIP = ["pywebview[qt]"] if (not IS_WIN and not IS_MAC) else []
 PAYLOAD = ROOT / "payload"
 
 TARGET_PYTHON = (3, 12)
@@ -199,7 +207,7 @@ def _ensure_target_python() -> None:
         print("[i] Installing pyinstaller + requirements.txt into it...")
         subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip"], check=True)
         subprocess.run(
-            [venv_python, "-m", "pip", "install", "pyinstaller", "-r", str(ROOT / "requirements.txt")],
+            [venv_python, "-m", "pip", "install", "pyinstaller", "-r", str(ROOT / "requirements.txt"), *EXTRA_PIP],
             check=True,
         )
 
@@ -321,7 +329,7 @@ def _payload_imports() -> list[str]:
 
 
 def _clear_old_dist() -> None:
-    targets = [DIST_DIR / "AcidModLoader.exe", DIST_DIR / "AcidModLoader"]
+    targets = [DIST_DIR / "AcidModLoader.exe", DIST_DIR / "AcidModLoader", DIST_DIR / "AcidModLoader.app"]
     for target in targets:
         if not target.exists():
             continue
@@ -350,26 +358,71 @@ def _run_pyinstaller() -> None:
 
     _clear_old_dist()
 
-    print("[i] Running PyInstaller in --onefile mode (this bundles the ~45+ MB JRE "
-          "INTO the exe itself, give it a minute)...")
     args = [
         sys.executable, "-m", "PyInstaller",
-        "--noconfirm", "--windowed", "--onefile", "--name", "AcidModLoader",
+        "--noconfirm", "--name", "AcidModLoader",
+        "--collect-all", "webview",
         "--add-data", f"{VENDOR}{os.pathsep}vendor",
         "--add-data", f"{PAYLOAD}{os.pathsep}payload",
     ]
+    if IS_WIN:
+        print("[i] PyInstaller (Windows): --onefile --windowed, con el JRE dentro del exe...")
+        args += ["--windowed", "--onefile"]
+        if ICON_FILE.is_file():
+            args += ["--icon", str(ICON_FILE)]
+    elif IS_MAC:
+        # En macOS --onefile + --windowed esta deprecado: se hace un .app (onedir)
+        print("[i] PyInstaller (macOS): AcidModLoader.app (--onedir --windowed)...")
+        args += ["--windowed", "--onedir", "--hidden-import", "webview.platforms.cocoa"]
+        if ICON_MAC.is_file():
+            args += ["--icon", str(ICON_MAC)]
+    else:
+        print("[i] PyInstaller (Linux): --onefile con backend Qt...")
+        args += ["--onefile", "--hidden-import", "webview.platforms.qt", "--hidden-import", "qtpy"]
+        # Sin esto se empaquetan bindings que no se usan y el binario pesa varios GB.
+        for m in ("PySide6", "PySide2", "PyQt5", "gi"):
+            args += ["--exclude-module", m]
+        os.environ["QT_API"] = "pyqt6"
+
     for module in _payload_imports():
         args += ["--hidden-import", module]
-    if ICON_FILE.is_file():
-        args += ["--icon", str(ICON_FILE)]
     args.append(str(ROOT / "launcher.py"))
     subprocess.run(args, check=True)
-    print(
-        "[i] Done - a single dist/AcidModLoader.exe is all you need to hand out. "
-        "No Java install needed on the target machine. First launch each time will "
-        "be a bit slower than --onedir was, since the exe has to unpack the JRE to "
-        "a temp folder every time it starts."
+
+
+def _package() -> None:
+    """Deja en Ejecutables/ un archivo por sistema:
+       Win -> AcidModLoaderWin.zip (exe + .bat), Lin -> AcidModLoaderLin, Mac -> AcidModLoaderMac.zip"""
+    OUT_DIR.mkdir(exist_ok=True)
+    final = OUT_DIR / (
+        "AcidModLoaderWin.zip" if IS_WIN else ("AcidModLoaderMac.zip" if IS_MAC else "AcidModLoaderLin")
     )
+    if final.exists():
+        final.unlink()
+
+    if IS_WIN:
+        exe = DIST_DIR / "AcidModLoader.exe"
+        bat = DIST_DIR / _LAUNCHER_BAT_NAME
+        for f in (exe, bat):
+            if not f.is_file():
+                raise SystemExit(f"[X] Falta {f}")
+        with zipfile.ZipFile(final, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.write(exe, exe.name)
+            zf.write(bat, bat.name)
+    elif IS_MAC:
+        app = DIST_DIR / "AcidModLoader.app"
+        if not app.is_dir():
+            raise SystemExit(f"[X] PyInstaller no genero {app}")
+        # ditto conserva permisos, symlinks y firma del .app (un zip normal los rompe)
+        subprocess.run(["ditto", "-c", "-k", "--keepParent", str(app), str(final)], check=True)
+    else:
+        binary = DIST_DIR / "AcidModLoader"
+        if not binary.is_file():
+            raise SystemExit(f"[X] PyInstaller no genero {binary}")
+        shutil.copy2(binary, final)
+        final.chmod(final.stat().st_mode | 0o111)
+
+    print(f"[OK] {final} ({final.stat().st_size // (1024 * 1024)} MB)")
 
 
 _LAUNCHER_BAT_CONTENT = (
@@ -443,7 +496,9 @@ def main() -> None:
     _check_icon()
     _check_payload()
     _run_pyinstaller()
-    _write_launcher_bat()
+    if IS_WIN:
+        _write_launcher_bat()
+    _package()
 
 
 def _opened_by_double_click() -> bool:

@@ -14,6 +14,7 @@ import webview
 
 import adblock
 import archive_utils
+import azumod_manager
 import color_relinker
 import installer
 import mod_registry
@@ -44,6 +45,31 @@ def _bundled_vendor_dir() -> Path:
     return root / "vendor"
 
 
+def _vendor_stamp(bundled: Path) -> str:
+    """Identifica el vendor/ de ESTE ejecutable (ffdec_lib.jar + version del JRE)."""
+    jar = bundled / "ffdec_lib.jar"
+    size = jar.stat().st_size if jar.is_file() else 0
+    try:
+        rel = (bundled / "jre" / "release").read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        rel = ""
+    return f"{size}|{rel}"
+
+
+def _fix_exec_bits(vendor: Path) -> None:
+    """Los datos empaquetados pueden perder el bit de ejecucion (Linux/macOS)."""
+    if os.name == "nt":
+        return
+    jre = vendor / "jre"
+    targets = list((jre / "bin").glob("*")) + [jre / "lib" / "jspawnhelper", jre / "lib" / "jexec"]
+    for p in targets:
+        try:
+            if p.is_file():
+                p.chmod(p.stat().st_mode | 0o111)
+        except OSError:
+            pass
+
+
 def _persistent_vendor_dir() -> Path:
     bundled = _bundled_vendor_dir()
     if not getattr(sys, "frozen", False):
@@ -51,12 +77,20 @@ def _persistent_vendor_dir() -> Path:
 
     dest = get_appdata_dir() / "vendor"
     marker = dest / ".copied"
-    if marker.is_file():
+    stamp = _vendor_stamp(bundled) if bundled.is_dir() else ""
+    # Se vuelve a copiar si el ejecutable trae otro vendor/ (antes un .exe nuevo con otro JRE
+    # o ffdec_lib.jar seguia usando la copia vieja para siempre).
+    try:
+        current = marker.read_text(encoding="utf-8") if marker.is_file() else None
+    except OSError:
+        current = None
+    if current is not None and (not bundled.is_dir() or current == stamp):
         return dest
     if bundled.is_dir():
         dest.mkdir(parents=True, exist_ok=True)
         shutil.copytree(bundled, dest, dirs_exist_ok=True)
-        marker.write_text("ok", encoding="utf-8")
+        _fix_exec_bits(dest)
+        marker.write_text(stamp, encoding="utf-8")
     return dest
 
 
@@ -448,3 +482,22 @@ class Api:
 
     def adblock_stats(self) -> dict:
         return adblock.stats()
+
+    # ---- Azu Modification (ver azumod_manager.py) ----
+    # Sin argumentos de URL/ruta a proposito: la pagina web que corre dentro de la app
+    # puede llamar estos metodos, y solo deben poder tocar el release oficial.
+    def azumod_check(self) -> dict:
+        info = azumod_manager.check()
+        info["dismissed"] = bool(info.get("latest")) and self.cfg.get("azumod_dismissed_tag") == info["latest"]
+        return info
+
+    def azumod_install(self) -> dict:
+        return azumod_manager.install()
+
+    def azumod_launch(self) -> dict:
+        return azumod_manager.launch()
+
+    def azumod_dismiss(self, tag: str) -> bool:
+        self.cfg["azumod_dismissed_tag"] = str(tag or "")[:80]
+        save_config(self.cfg)
+        return True

@@ -53,7 +53,7 @@ def current_version() -> str:
 def _open(url: str, timeout: int = 20):
     resp = urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout)
     host = urllib.parse.urlparse(resp.geturl()).hostname or ""
-    if not host.endswith(ALLOWED_HOSTS):
+    if not any(host == d or host.endswith("." + d) for d in ALLOWED_HOSTS):
         resp.close()
         raise ValueError(f"Redirección a host no permitido: {host}")
     return resp

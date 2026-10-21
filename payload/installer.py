@@ -8,6 +8,29 @@ import mod_registry
 from bmod_reader import parse_bmod, BmodError
 from swf_sprite_merge import merge_bmod_swfs, MergeError
 
+
+def _ci_path(base: Path, rel) -> Path:
+    """Resuelve `rel` dentro de `base` ignorando mayusculas/minusculas.
+    Windows no distingue Gfx.swf de gfx.swf, Linux/macOS si: sin esto, un mod hecho en Windows
+    no encuentra el archivo del juego o crea un duplicado con otra capitalizacion.
+    Tambien descarta '..' y rutas absolutas para que nada salga de `base`."""
+    rel = Path(rel)
+    parts = rel.parts[1:] if rel.anchor else rel.parts
+    parts = [p for p in parts if p not in ("", ".", "..")]
+    cur = base
+    for i, part in enumerate(parts):
+        nxt = cur / part
+        if not nxt.exists():
+            try:
+                found = next((c for c in cur.iterdir() if c.name.lower() == part.lower()), None)
+            except OSError:
+                found = None
+            if found is None:
+                return cur.joinpath(*parts[i:])
+            nxt = found
+        cur = nxt
+    return cur
+
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
 AUDIO_BANK_EXTS = {".bnk", ".wem"}
 MAPART_SUBFOLDER = "mapart"
@@ -180,7 +203,7 @@ def install_zip_mod(
                 rel_parts = [p for p in Path(raw_path).parts if p not in ("", ".")]
                 if len(rel_parts) > 1:
                     rel_path = Path(*rel_parts)
-                    dest = brawlhalla_folder / rel_path
+                    dest = _ci_path(brawlhalla_folder, rel_path)
                     if dest.is_file():
                         with mods_zip.open(info) as src:
                             mod_registry.write_bytes(dest, src.read())
@@ -190,10 +213,10 @@ def install_zip_mod(
                     continue
 
                 if name.lower().startswith("bones"):
-                    dest = brawlhalla_folder / "bones" / name
+                    dest = _ci_path(brawlhalla_folder, Path("bones") / name)
                     copied_swf.append(f"{name}  (-> bones/)")
                 else:
-                    dest = brawlhalla_folder / name
+                    dest = _ci_path(brawlhalla_folder, name)
                     copied_swf.append(name)
                 with mods_zip.open(info) as src:
                     mod_registry.write_bytes(dest, src.read())
@@ -428,7 +451,7 @@ def install_bmod(bmod_bytes: bytes, bmod_path: Path, brawlhalla_folder: Path, lo
             log(f"   [!] {dest_name}: language file, needs text patching — skipped")
             continue
 
-        direct = brawlhalla_folder / dest_name
+        direct = _ci_path(brawlhalla_folder, dest_name)
         if direct.is_file():
             mod_registry.write_bytes(direct, data)
             installed.append(str(direct))

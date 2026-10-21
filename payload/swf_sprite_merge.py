@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -43,8 +44,27 @@ def _find_jvm_path(java_home: str | None = None) -> str:
         candidate = "/Library/Internet Plug-Ins/JavaAppletPlugin.plugin/Contents/Home/lib/jli/libjli.dylib"
         if os.path.exists(candidate):
             return candidate
+    try:
         return jpype._jvmfinder.getDefaultJVMPath()
-    return jpype._jvmfinder.getDefaultJVMPath()
+    except Exception:
+        # JPype solo mira JAVA_HOME y rutas tipicas; si Java esta en el PATH (brew, distrobox,
+        # SDKMAN...) se deduce su carpeta a partir de ese `java`.
+        found = _jvm_from_java_on_path()
+        if found:
+            return found
+        raise
+
+
+def _jvm_from_java_on_path() -> str | None:
+    java = shutil.which("java")
+    if not java:
+        return None
+    home = Path(os.path.realpath(java)).parent.parent
+    lib = "libjvm.dylib" if sys.platform == "darwin" else "libjvm.so"
+    for candidate in (home / "lib" / "server" / lib, home / "jre" / "lib" / "server" / lib):
+        if candidate.is_file():
+            return str(candidate)
+    return None
 
 
 def _java_executable_near(jvm_path: str) -> str | None:

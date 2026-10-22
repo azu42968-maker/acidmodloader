@@ -13,3 +13,9 @@ config.json
 Ejecutables/
 vendor/jre/
 payload/*.zip
+venv/
+vendor/jre/
+vendor/jre_windows/
+dist/
+build/
+error.log

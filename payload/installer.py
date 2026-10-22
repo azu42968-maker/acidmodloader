@@ -36,6 +36,24 @@ AUDIO_BANK_EXTS = {".bnk", ".wem"}
 MAPART_SUBFOLDER = "mapart"
 
 
+def find_ci(parent, name):
+    """Busca una subcarpeta ignorando mayusculas (Linux distingue mapArt de mapart)."""
+    try:
+        for child in parent.iterdir():
+            if child.name.lower() == name.lower():
+                return child
+    except OSError:
+        pass
+    return parent / name
+
+
+
+
+
+
+
+
+
 class InstallError(Exception):
     pass
 
@@ -167,7 +185,7 @@ def install_zip_mod(
     ffdec_jar_path: str | None = None,
     java_home: str | None = None,
 ) -> dict:
-    mapart_folder = brawlhalla_folder / MAPART_SUBFOLDER
+    mapart_folder = find_ci(brawlhalla_folder, MAPART_SUBFOLDER)
     if not mapart_folder.is_dir():
         raise InstallError(
             f"Could not find the '{MAPART_SUBFOLDER}' folder inside: {brawlhalla_folder}"

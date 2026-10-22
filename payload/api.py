@@ -14,7 +14,6 @@ import webview
 
 import adblock
 import archive_utils
-import azumod_manager
 import color_relinker
 import installer
 import mod_registry
@@ -219,7 +218,7 @@ class Api:
             return {"ok": False, "error": f"Esa carpeta no existe: {folder}"}
         self.cfg["brawlhalla_path"] = str(folder)
         save_config(self.cfg)
-        warning = "" if (folder / "mapart").is_dir() else \
+        warning = "" if installer.find_ci(folder, "mapart").is_dir() else \
             "Guardada, pero no veo la carpeta 'mapart' ahi dentro. Revisa que sea la carpeta de Brawlhalla."
         return {"ok": True, "path": str(folder), "warning": warning}
 
@@ -482,22 +481,3 @@ class Api:
 
     def adblock_stats(self) -> dict:
         return adblock.stats()
-
-    # ---- Azu Modification (ver azumod_manager.py) ----
-    # Sin argumentos de URL/ruta a proposito: la pagina web que corre dentro de la app
-    # puede llamar estos metodos, y solo deben poder tocar el release oficial.
-    def azumod_check(self) -> dict:
-        info = azumod_manager.check()
-        info["dismissed"] = bool(info.get("latest")) and self.cfg.get("azumod_dismissed_tag") == info["latest"]
-        return info
-
-    def azumod_install(self) -> dict:
-        return azumod_manager.install()
-
-    def azumod_launch(self) -> dict:
-        return azumod_manager.launch()
-
-    def azumod_dismiss(self, tag: str) -> bool:
-        self.cfg["azumod_dismissed_tag"] = str(tag or "")[:80]
-        save_config(self.cfg)
-        return True

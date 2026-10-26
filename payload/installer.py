@@ -1,6 +1,7 @@
+import io
+import re
 import tempfile
 import zipfile
-import io
 from pathlib import Path
 
 import archive_utils
@@ -8,6 +9,22 @@ import mod_registry
 from bmod_reader import parse_bmod, BmodError
 from swf_sprite_merge import merge_bmod_swfs, MergeError
 
+IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
+AUDIO_BANK_EXTS = {".bnk", ".wem"}
+MAPART_SUBFOLDER = "mapart"
+JUNK_NAMES = {".ds_store", "thumbs.db", "desktop.ini"}
+# Carpetas de primer nivel que son rutas reales del juego (no agrupaciones de mapas).
+# Ademas se acepta cualquier carpeta que ya exista en la carpeta del juego.
+DIRECT_ROOTS = {"sprites"}
+
+
+class InstallError(Exception):
+    pass
+
+
+# ---------------------------------------------------------------------------
+# Rutas
+# ---------------------------------------------------------------------------
 
 def _ci_path(base: Path, rel) -> Path:
     """Resuelve `rel` dentro de `base` ignorando mayusculas/minusculas.
@@ -31,10 +48,6 @@ def _ci_path(base: Path, rel) -> Path:
         cur = nxt
     return cur
 
-IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
-AUDIO_BANK_EXTS = {".bnk", ".wem"}
-MAPART_SUBFOLDER = "mapart"
-
 
 def find_ci(parent, name):
     """Busca una subcarpeta ignorando mayusculas (Linux distingue mapArt de mapart)."""
@@ -47,19 +60,39 @@ def find_ci(parent, name):
     return parent / name
 
 
-
-
-
-
-
-
-
-class InstallError(Exception):
-    pass
-
-
 def _entry_name(zip_path: str) -> str:
     return Path(zip_path.replace("\\", "/")).name
+
+
+def _is_junk(raw_path: str) -> bool:
+    """Basura que meten macOS/Windows en los zips (__MACOSX/._foo.png, .DS_Store, Thumbs.db...).
+    Sin filtrarla, esos archivos parecen imagenes y ensucian el resultado como "missing"."""
+    parts = [p for p in raw_path.replace("\\", "/").split("/") if p]
+    if not parts or "__MACOSX" in parts:
+        return True
+    last = parts[-1]
+    return last.startswith("._") or last.lower() in JUNK_NAMES
+
+
+def _zip_rel_parts(raw_path: str):
+    """Partes de la ruta de una entrada del zip, o None si intenta escapar de la carpeta
+    (ruta absoluta, letra de unidad o '..'). Evita sobrescribir archivos fuera del juego."""
+    norm = raw_path.replace("\\", "/")
+    if norm.startswith("/") or re.match(r"^[A-Za-z]:", norm):
+        return None
+    parts = [p for p in norm.split("/") if p not in ("", ".")]
+    if ".." in parts:
+        return None
+    return parts
+
+
+def _is_packaged_root(brawlhalla_folder: Path, first: str) -> bool:
+    """True si la primera carpeta del zip es una ruta real del juego (sprites/, bones/...)
+    y no un simple agrupador de mapas (p. ej. "Tekken/"). mapart/ se sigue resolviendo por nombre."""
+    low = first.lower()
+    if low == MAPART_SUBFOLDER:
+        return False
+    return low in DIRECT_ROOTS or find_ci(brawlhalla_folder, first).is_dir()
 
 
 def build_filename_index(root_folder: Path) -> dict:
@@ -70,9 +103,29 @@ def build_filename_index(root_folder: Path) -> dict:
     return index
 
 
+def _safe_write(dest: Path, data: bytes, log, write_errors: list | None) -> bool:
+    """Escribe y, si falla (juego abierto, sin permisos, disco lleno), lo registra y sigue
+    con el resto en vez de abortar la instalacion a medias."""
+    try:
+        mod_registry.write_bytes(dest, data)
+        return True
+    except OSError as e:
+        msg = f"{dest}: {e}"
+        if write_errors is not None:
+            write_errors.append(msg)
+        log(f"   [X] Could not write {msg}")
+        return False
+
+
+# ---------------------------------------------------------------------------
+# Imagenes
+# ---------------------------------------------------------------------------
+
 def _image_entries(infos):
     out = []
     for info in infos:
+        if info.is_dir() or _is_junk(info.filename):
+            continue
         name = _entry_name(info.filename)
         if name and Path(name).suffix.lower() in IMAGE_EXTS:
             out.append((name, info))
@@ -114,8 +167,7 @@ def get_target_folder_by_intersection(infos, name_index: dict, bg_entry_name: st
 
 
 def _find_bg_entry_name(infos) -> str | None:
-    entries = _image_entries(infos)
-    names = [n for n, _ in entries]
+    names = [n for n, _ in _image_entries(infos)]
     # If every image is a background, there is no "odd one out" to exclude.
     if names and all(n.lower().startswith("bg") for n in names):
         return None
@@ -133,7 +185,10 @@ def _process_image_group(
     replaced_images: list,
     missing_images: list,
     skipped_multi: list,
+    log=lambda _m: None,
+    write_errors: list | None = None,
 ) -> None:
+    entries = _image_entries(infos)
     bg_entry_name = _find_bg_entry_name(infos)
     target_folder = get_target_folder_by_intersection(infos, name_index, bg_entry_name)
 
@@ -141,22 +196,17 @@ def _process_image_group(
         bg_matches = name_index.get(bg_entry_name.lower(), [])
         if len(bg_matches) == 1:
             candidate = bg_matches[0].parent
-            others_here = False
-            for name, _info in _image_entries(infos):
-                if not name or name == bg_entry_name:
-                    continue
-                for p in name_index.get(name.lower(), []):
-                    if p.parent == candidate:
-                        others_here = True
-                        break
-                if others_here:
-                    break
+            others_here = any(
+                p.parent == candidate
+                for name, _info in entries
+                if name != bg_entry_name
+                for p in name_index.get(name.lower(), [])
+            )
             if others_here:
                 target_folder = candidate
 
-    for img_name, img_info in _image_entries(infos):
-        key = img_name.lower()
-        matches = name_index.get(key)
+    for img_name, img_info in entries:
+        matches = name_index.get(img_name.lower())
         if not matches:
             missing_images.append((source_name, img_name))
             continue
@@ -174,9 +224,13 @@ def _process_image_group(
 
         img_bytes = zf.read(img_info)
         for dest_path in matches:
-            mod_registry.write_bytes(dest_path, img_bytes)
-            replaced_images.append((img_name, dest_path))
+            if _safe_write(dest_path, img_bytes, log, write_errors):
+                replaced_images.append((img_name, dest_path))
 
+
+# ---------------------------------------------------------------------------
+# Zip
+# ---------------------------------------------------------------------------
 
 def install_zip_mod(
     zip_bytes: bytes,
@@ -205,39 +259,51 @@ def install_zip_mod(
     skipped_multi: list[tuple[str, list[Path]]] = []
     bmod_results: list[tuple[str, dict]] = []
     bmod_errors: list[tuple[str, str]] = []
+    write_errors: list[str] = []
+    unsafe_entries: list[str] = []
 
-    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as mods_zip:
+    try:
+        mods_zip_cm = zipfile.ZipFile(io.BytesIO(zip_bytes))
+    except zipfile.BadZipFile as e:
+        raise InstallError(f"The file is not a valid zip: {e}")
+
+    with mods_zip_cm as mods_zip:
         top_level_image_infos = []
         folder_image_infos: dict[str, list] = {}
 
         for info in mods_zip.infolist():
+            if info.is_dir() or _is_junk(info.filename):
+                continue
             raw_path = info.filename.replace("\\", "/")
-            name = _entry_name(info.filename)
+            rel_parts = _zip_rel_parts(raw_path)
+            if rel_parts is None:
+                unsafe_entries.append(info.filename)
+                log(f"   [!] Skipped unsafe path inside the zip: {info.filename}")
+                continue
+            name = rel_parts[-1] if rel_parts else ""
             if not name:
                 continue
             ext = Path(name).suffix.lower()
 
             if ext == ".swf":
-                rel_parts = [p for p in Path(raw_path).parts if p not in ("", ".")]
                 if len(rel_parts) > 1:
                     rel_path = Path(*rel_parts)
                     dest = _ci_path(brawlhalla_folder, rel_path)
                     if dest.is_file():
-                        with mods_zip.open(info) as src:
-                            mod_registry.write_bytes(dest, src.read())
-                        replaced_swf.append((str(rel_path), dest))
+                        if _safe_write(dest, mods_zip.read(info), log, write_errors):
+                            replaced_swf.append((str(rel_path), dest))
                     else:
                         missing_swf_targets.append(str(rel_path))
                     continue
 
                 if name.lower().startswith("bones"):
                     dest = _ci_path(brawlhalla_folder, Path("bones") / name)
-                    copied_swf.append(f"{name}  (-> bones/)")
+                    label = f"{name}  (-> bones/)"
                 else:
                     dest = _ci_path(brawlhalla_folder, name)
-                    copied_swf.append(name)
-                with mods_zip.open(info) as src:
-                    mod_registry.write_bytes(dest, src.read())
+                    label = name
+                if _safe_write(dest, mods_zip.read(info), log, write_errors):
+                    copied_swf.append(label)
                 continue
 
             if ext == ".bmod":
@@ -271,25 +337,27 @@ def install_zip_mod(
                     continue
                 with nested_zip_file as nested_zip:
                     _process_image_group(
-                        nested_zip,
-                        nested_zip.infolist(),
-                        name_index,
-                        name,
-                        replaced_images,
-                        missing_images,
-                        skipped_multi,
+                        nested_zip, nested_zip.infolist(), name_index, name,
+                        replaced_images, missing_images, skipped_multi, log, write_errors,
                     )
                 continue
 
             if ext in IMAGE_EXTS:
-                rel_parts = [p for p in Path(raw_path).parts if p not in ("", ".")]
                 if len(rel_parts) > 1:
-                    dest = brawlhalla_folder / Path(*rel_parts)
-                    if dest.is_file():
-                        # The zip already uses the real packaged path.
-                        with mods_zip.open(info) as src:
-                            mod_registry.write_bytes(dest, src.read())
-                        copied_direct.append((str(Path(*rel_parts)), dest))
+                    dest = _ci_path(brawlhalla_folder, Path(*rel_parts))
+                    existed = dest.is_file()
+                    if existed or _is_packaged_root(brawlhalla_folder, rel_parts[0]):
+                        # The zip already uses the real packaged path (the file may be new,
+                        # e.g. sprites/handmade/live/<skin>/...): write it, creating folders.
+                        try:
+                            dest.parent.mkdir(parents=True, exist_ok=True)
+                        except OSError as e:
+                            write_errors.append(f"{dest.parent}: {e}")
+                            log(f"   [X] Could not create folder {dest.parent}: {e}")
+                            continue
+                        if _safe_write(dest, mods_zip.read(info), log, write_errors):
+                            label = str(Path(*rel_parts)) + ("" if existed else "  (new file)")
+                            copied_direct.append((label, dest))
                     else:
                         # Folder inside the zip is only a grouping (e.g. "Tekken/"):
                         # resolve the real files inside mapart/ by name.
@@ -301,25 +369,20 @@ def install_zip_mod(
 
         for folder_name, folder_infos in folder_image_infos.items():
             _process_image_group(
-                mods_zip,
-                folder_infos,
-                name_index,
-                folder_name,
-                replaced_images,
-                missing_images,
-                skipped_multi,
+                mods_zip, folder_infos, name_index, folder_name,
+                replaced_images, missing_images, skipped_multi, log, write_errors,
             )
 
         if top_level_image_infos:
             _process_image_group(
-                mods_zip,
-                top_level_image_infos,
-                name_index,
-                "(root)",
-                replaced_images,
-                missing_images,
-                skipped_multi,
+                mods_zip, top_level_image_infos, name_index, "(root)",
+                replaced_images, missing_images, skipped_multi, log, write_errors,
             )
+
+    problems = (
+        len(missing_swf_targets) + len(missing_images) + len(skipped_multi)
+        + len(bmod_errors) + len(write_errors) + len(unsafe_entries)
+    )
 
     log("=" * 60)
     log(f"SWF files copied directly to the game folder ({len(copied_swf)}):")
@@ -355,6 +418,7 @@ def install_zip_mod(
         for zip_name, img in missing_images:
             log(f"   MISSING {img}  (inside {zip_name})")
     if bmod_results or bmod_errors:
+        log("")
         log(f".bmod files installed from inside this zip ({len(bmod_results)}):")
         for n, _result in bmod_results:
             log(f"   OK {n}")
@@ -363,9 +427,18 @@ def install_zip_mod(
             log(f"[X] .bmod files that failed to install ({len(bmod_errors)}):")
             for n, err in bmod_errors:
                 log(f"   {n}: {err}")
+    if write_errors:
         log("")
+        log(f"[X] Files that could not be written ({len(write_errors)}) - is the game running or the folder read-only?")
+        for e in write_errors:
+            log(f"   {e}")
+    if unsafe_entries:
+        log("")
+        log(f"[!] Entries skipped for unsafe paths ({len(unsafe_entries)}):")
+        for e in unsafe_entries:
+            log(f"   {e}")
     log("=" * 60)
-    log("Done.")
+    log("Done." if not problems else f"Done, with {problems} problem(s) - see the messages above.")
 
     return {
         "copied_swf": copied_swf,
@@ -377,20 +450,33 @@ def install_zip_mod(
         "missing_images": missing_images,
         "bmod_results": bmod_results,
         "bmod_errors": bmod_errors,
+        "write_errors": write_errors,
+        "unsafe_entries": unsafe_entries,
+        "problems": problems,
     }
 
 
 def install_loose_swf(swf_bytes: bytes, filename: str, brawlhalla_folder: Path, log) -> dict:
+    filename = _entry_name(filename)
+    if not filename:
+        raise InstallError("Invalid SWF file name.")
     if filename.lower().startswith("bones"):
-        dest = brawlhalla_folder / "bones" / filename
+        dest = _ci_path(brawlhalla_folder, Path("bones") / filename)
     else:
-        dest = brawlhalla_folder / filename
+        dest = _ci_path(brawlhalla_folder, filename)
 
-    mod_registry.write_bytes(dest, swf_bytes)
+    try:
+        mod_registry.write_bytes(dest, swf_bytes)
+    except OSError as e:
+        raise InstallError(f"Could not write {dest}: {e}")
     log(f"OK {filename}  ->  {dest}")
     log("Done.")
     return {"copied_swf": [filename], "dest": str(dest)}
 
+
+# ---------------------------------------------------------------------------
+# .bmod
+# ---------------------------------------------------------------------------
 
 def install_bmod(bmod_bytes: bytes, bmod_path: Path, brawlhalla_folder: Path, log,
                   ffdec_jar_path: str | None = None, java_home: str | None = None) -> dict:
@@ -430,23 +516,38 @@ def install_bmod(bmod_bytes: bytes, bmod_path: Path, brawlhalla_folder: Path, lo
             log("    plain files below (if any) were installed.")
             log("")
 
+    needs_full_loader = bool(swfs_map) and swf_merge_result is None
+
     if not files_map:
         log("This mod has no plain embedded files to install.")
         log("Done.")
         return {
-            "installed": [], "skipped": [], "missing": [],
-            "needs_full_loader": bool(swfs_map) and swf_merge_result is None,
+            "installed": [], "skipped": [], "missing": [], "failed": [],
+            "needs_full_loader": needs_full_loader,
             "swf_merge": swf_merge_result,
         }
 
-    name_index: dict[str, list[Path]] = {}
-    for p in brawlhalla_folder.rglob("*"):
-        if p.is_file():
-            name_index.setdefault(p.name.lower(), []).append(p)
+    # Indexar toda la carpeta del juego es lento: solo se hace si algun archivo
+    # no se encuentra directamente por su ruta.
+    index_cache: dict[str, dict] = {}
+
+    def get_index() -> dict:
+        if "idx" not in index_cache:
+            index_cache["idx"] = build_filename_index(brawlhalla_folder)
+        return index_cache["idx"]
 
     installed: list[str] = []
     skipped: list[str] = []
     missing: list[str] = []
+    failed: list[str] = []
+
+    def write(dest: Path, data: bytes, shown: str) -> None:
+        errs: list[str] = []
+        if _safe_write(dest, data, log, errs):
+            installed.append(str(dest))
+            log(f"   OK {shown}")
+        else:
+            failed.extend(errs)
 
     for char_id, dest_name in files_map.items():
         data = bmod.files_by_id.get(char_id)
@@ -471,31 +572,28 @@ def install_bmod(bmod_bytes: bytes, bmod_path: Path, brawlhalla_folder: Path, lo
 
         direct = _ci_path(brawlhalla_folder, dest_name)
         if direct.is_file():
-            mod_registry.write_bytes(direct, data)
-            installed.append(str(direct))
-            log(f"   OK {dest_name}")
+            write(direct, data, dest_name)
             continue
 
-        candidates = name_index.get(base_name.lower())
+        candidates = get_index().get(base_name.lower())
         if not candidates:
             missing.append(dest_name)
             log(f"   [X] {dest_name}: no matching file found in your Brawlhalla folder")
         elif len(candidates) == 1:
-            mod_registry.write_bytes(candidates[0], data)
-            installed.append(str(candidates[0]))
-            log(f"   OK {base_name}  ->  {candidates[0]}")
+            write(candidates[0], data, f"{base_name}  ->  {candidates[0]}")
         else:
             skipped.append(dest_name)
             log(f"   [!] {base_name}: matches {len(candidates)} files in your folder, ambiguous — skipped")
 
     log("")
-    log(f"Installed: {len(installed)}   Skipped: {len(skipped)}   Missing: {len(missing)}")
+    log(f"Installed: {len(installed)}   Skipped: {len(skipped)}   Missing: {len(missing)}   Failed: {len(failed)}")
     log("Done.")
 
     return {
         "installed": installed,
         "skipped": skipped,
         "missing": missing,
-        "needs_full_loader": bool(swfs_map) and swf_merge_result is None,
+        "failed": failed,
+        "needs_full_loader": needs_full_loader,
         "swf_merge": swf_merge_result,
     }

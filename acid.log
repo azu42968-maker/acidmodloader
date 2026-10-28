@@ -1,5 +1,7 @@
-[11889:11908:1026/162829.269034:ERROR:../../../qtwebengine/src/3rdparty/chromium/dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No existe el fichero o el directorio
+[19716:19734:1026/200439.824437:ERROR:../../../qtwebengine/src/3rdparty/chromium/dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No existe el fichero o el directorio
 GPUInfo not initialized on GpuInfoUpdate
+js: [GPT] Slot.updateTargetingFromMap is deprecated, use Slot.setConfig({targeting: ...}) instead.
+https://goo.gle/gpt-message#171
 js: [GPT] PubAdsService.setTargeting is deprecated, use googletag.setConfig({targeting: ...}) instead.
 https://goo.gle/gpt-message#170
 Traceback (most recent call last):
@@ -22,13 +24,83 @@ Traceback (most recent call last):
   File "/usr/lib64/python3.14/http/cookies.py", line 357, in set
     raise CookieError('Illegal key %r' % (key,))
 http.cookies.CookieError: Illegal key 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-[11889:11926:1026/162839.742689:ERROR:./../../../qtwebengine/src/3rdparty/chromium/components/viz/service/transitions/surface_animation_manager.cc:266] No SurfaceAnimationManager for token : E48CCFB9EBA2F0A263F8B85B70A442AF
-[11889:11926:1026/162839.783778:ERROR:./../../../qtwebengine/src/3rdparty/chromium/components/viz/service/transitions/surface_animation_manager.cc:266] No SurfaceAnimationManager for token : E48CCFB9EBA2F0A263F8B85B70A442AF
-[11889:11926:1026/162839.790778:ERROR:./../../../qtwebengine/src/3rdparty/chromium/components/viz/service/transitions/surface_animation_manager.cc:266] No SurfaceAnimationManager for token : E48CCFB9EBA2F0A263F8B85B70A442AF
-[11889:11926:1026/162839.807335:ERROR:./../../../qtwebengine/src/3rdparty/chromium/components/viz/service/transitions/surface_animation_manager.cc:266] No SurfaceAnimationManager for token : E48CCFB9EBA2F0A263F8B85B70A442AF
-[11889:11926:1026/162839.824536:ERROR:./../../../qtwebengine/src/3rdparty/chromium/components/viz/service/transitions/surface_animation_manager.cc:266] No SurfaceAnimationManager for token : E48CCFB9EBA2F0A263F8B85B70A442AF
-[11889:11926:1026/162839.840721:ERROR:./../../../qtwebengine/src/3rdparty/chromium/components/viz/service/transitions/surface_animation_manager.cc:266] No SurfaceAnimationManager for token : E48CCFB9EBA2F0A263F8B85B70A442AF
 js: TypeError: Cannot read properties of undefined (reading '_aGame')
+js: [GPT] PubAdsService.setTargeting is deprecated, use googletag.setConfig({targeting: ...}) instead.
+https://goo.gle/gpt-message#170
+Traceback (most recent call last):
+  File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/platforms/qt.py", line 550, in on_cookie_added
+    cookie = create_cookie(raw)
+  File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/util.py", line 150, in create_cookie
+    return SimpleCookie(input_)
+  File "/usr/lib64/python3.14/http/cookies.py", line 505, in __init__
+    self.load(input)
+    ~~~~~~~~~^^^^^^^
+  File "/usr/lib64/python3.14/http/cookies.py", line 557, in load
+    self.__parse_string(rawdata)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/usr/lib64/python3.14/http/cookies.py", line 621, in __parse_string
+    self.__set(key, rval, cval)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.14/http/cookies.py", line 510, in __set
+    M.set(key, real_value, coded_value)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.14/http/cookies.py", line 357, in set
+    raise CookieError('Illegal key %r' % (key,))
+http.cookies.CookieError: Illegal key 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+js: Uncaught TypeError: Cannot read properties of undefined (reading 'unshift')
+js: Error CL001: Multiple Clarity tags detected.
+js: [GPT] Slot.updateTargetingFromMap is deprecated, use Slot.setConfig({targeting: ...}) instead.
+https://goo.gle/gpt-message#171
+Traceback (most recent call last):
+  File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/platforms/qt.py", line 550, in on_cookie_added
+    cookie = create_cookie(raw)
+  File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/util.py", line 150, in create_cookie
+    return SimpleCookie(input_)
+  File "/usr/lib64/python3.14/http/cookies.py", line 505, in __init__
+    self.load(input)
+    ~~~~~~~~~^^^^^^^
+  File "/usr/lib64/python3.14/http/cookies.py", line 557, in load
+    self.__parse_string(rawdata)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/usr/lib64/python3.14/http/cookies.py", line 621, in __parse_string
+    self.__set(key, rval, cval)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.14/http/cookies.py", line 510, in __set
+    M.set(key, real_value, coded_value)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.14/http/cookies.py", line 357, in set
+    raise CookieError('Illegal key %r' % (key,))
+http.cookies.CookieError: Illegal key 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+js: [GPT] PubAdsService.setTargeting is deprecated, use googletag.setConfig({targeting: ...}) instead.
+https://goo.gle/gpt-message#170
+js: [GPT] Slot.updateTargetingFromMap is deprecated, use Slot.setConfig({targeting: ...}) instead.
+https://goo.gle/gpt-message#171
+[19716:19734:1026/200458.792029:ERROR:../../../qtwebengine/src/3rdparty/chromium/dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No existe el fichero o el directorio
+[19716:19734:1026/200458.792083:ERROR:../../../qtwebengine/src/3rdparty/chromium/dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No existe el fichero o el directorio
+[19716:19716:1026/200458.792455:ERROR:../../../qtwebengine/src/3rdparty/chromium/dbus/object_proxy.cc:573] Failed to call method: org.freedesktop.DBus.Properties.GetAll: object_path= /org/freedesktop/UPower/devices/DisplayDevice: unknown error type: 
+js: Failed to create WebGPU Context Provider
+js: Failed to create WebGPU Context Provider
+Registered new object after initialization, existing clients won't be notified!
+Exception in thread Thread-6 (_call):
+Traceback (most recent call last):
+  File "/usr/lib64/python3.14/threading.py", line 1082, in _bootstrap_inner
+    self._context.run(self.run)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/usr/lib64/python3.14/threading.py", line 1024, in run
+    self._target(*self._args, **self._kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/util.py", line 264, in _call
+    window.evaluate_js(
+    ~~~~~~~~~~~~~~~~~~^
+        f'window.pywebview._returnValuesCallbacks["{func_name}"]["{value_id}"]({retval})'
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/window.py", line 49, in wrapper
+    return function(self, *args, **kwargs)
+  File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/window.py", line 503, in evaluate_js
+    raise JavascriptException(result)
+webview.errors.JavascriptException: {'name': 'TypeError', 'stack': 'TypeError: window.pywebview._returnValuesCallbacks.navigate.9889847241213738 is not a function\n    at eval (eval at <anonymous> (:4:29), <anonymous>:1:72)\n    at <anonymous>:4:29', 'message': 'window.pywebview._returnValuesCallbacks.navigate.9889847241213738 is not a function'}
 js: Uncaught TypeError: Cannot read properties of undefined (reading 'unshift')
 js: Error CL001: Multiple Clarity tags detected.
 Traceback (most recent call last):
@@ -53,56 +125,7 @@ Traceback (most recent call last):
 http.cookies.CookieError: Illegal key 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
 js: [GPT] PubAdsService.setTargeting is deprecated, use googletag.setConfig({targeting: ...}) instead.
 https://goo.gle/gpt-message#170
+js: [GPT] Slot.updateTargetingFromMap is deprecated, use Slot.setConfig({targeting: ...}) instead.
+https://goo.gle/gpt-message#171
 Registered new object after initialization, existing clients won't be notified!
-Exception in thread Thread-6 (_call):
-Traceback (most recent call last):
-  File "/usr/lib64/python3.14/threading.py", line 1082, in _bootstrap_inner
-    self._context.run(self.run)
-    ~~~~~~~~~~~~~~~~~^^^^^^^^^^
-  File "/usr/lib64/python3.14/threading.py", line 1024, in run
-    self._target(*self._args, **self._kwargs)
-    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/util.py", line 264, in _call
-    window.evaluate_js(
-    ~~~~~~~~~~~~~~~~~~^
-        f'window.pywebview._returnValuesCallbacks["{func_name}"]["{value_id}"]({retval})'
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/window.py", line 49, in wrapper
-    return function(self, *args, **kwargs)
-  File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/window.py", line 503, in evaluate_js
-    raise JavascriptException(result)
-webview.errors.JavascriptException: {'name': 'TypeError', 'stack': 'TypeError: window.pywebview._returnValuesCallbacks.navigate.501325031353567 is not a function\n    at eval (eval at <anonymous> (:4:29), <anonymous>:1:71)\n    at <anonymous>:4:29', 'message': 'window.pywebview._returnValuesCallbacks.navigate.501325031353567 is not a function'}
-[11889:11927:1026/162846.899031:ERROR:./../../../qtwebengine/src/3rdparty/chromium/net/socket/ssl_client_socket_impl.cc:915] handshake failed; returned -1, SSL error code 1, net_error -101
-Traceback (most recent call last):
-  File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/platforms/qt.py", line 550, in on_cookie_added
-    cookie = create_cookie(raw)
-  File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/util.py", line 150, in create_cookie
-    return SimpleCookie(input_)
-  File "/usr/lib64/python3.14/http/cookies.py", line 505, in __init__
-    self.load(input)
-    ~~~~~~~~~^^^^^^^
-  File "/usr/lib64/python3.14/http/cookies.py", line 557, in load
-    self.__parse_string(rawdata)
-    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^
-  File "/usr/lib64/python3.14/http/cookies.py", line 621, in __parse_string
-    self.__set(key, rval, cval)
-    ~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "/usr/lib64/python3.14/http/cookies.py", line 510, in __set
-    M.set(key, real_value, coded_value)
-    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/lib64/python3.14/http/cookies.py", line 357, in set
-    raise CookieError('Illegal key %r' % (key,))
-http.cookies.CookieError: Illegal key 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-js: [GPT] PubAdsService.setTargeting is deprecated, use googletag.setConfig({targeting: ...}) instead.
-https://goo.gle/gpt-message#170
-[11889:11908:1026/162848.836579:ERROR:../../../qtwebengine/src/3rdparty/chromium/dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No existe el fichero o el directorio
-[11889:11908:1026/162848.836847:ERROR:../../../qtwebengine/src/3rdparty/chromium/dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No existe el fichero o el directorio
-[11889:11889:1026/162848.836860:ERROR:../../../qtwebengine/src/3rdparty/chromium/dbus/object_proxy.cc:573] Failed to call method: org.freedesktop.DBus.Properties.GetAll: object_path= /org/freedesktop/UPower/devices/DisplayDevice: unknown error type: 
-js: Failed to create WebGPU Context Provider
-js: Failed to create WebGPU Context Provider
-Registered new object after initialization, existing clients won't be notified!
-js: Access to fetch at 'https://googleads.g.doubleclick.net/pagead/viewthroughconversion/962985656/?backend=innertube&cname=56&cver=2_20261026&foc_id=rRMqSTVNQ_P0g29vh_LlZA&label=followon_view&ptype=no_rmkt&random=636601676&cv_attributed=0' (redirected from 'https://www.youtube.com/pagead/viewthroughconversion/962985656/?backend=innertube&cname=56&cver=2_20261026&foc_id=rRMqSTVNQ_P0g29vh_LlZA&label=followon_view&ptype=no_rmkt&random=636601676') from origin 'https://www.youtube.com' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[11889:11926:1026/162925.891549:ERROR:./../../../qtwebengine/src/3rdparty/chromium/components/viz/service/transitions/surface_animation_manager.cc:266] No SurfaceAnimationManager for token : 58AEF423F82F63E968DD085252FCE3A2
-js: TypeError: Cannot read properties of undefined (reading '_aGame')
+Release of profile requested but WebEnginePage still not deleted. Expect troubles !

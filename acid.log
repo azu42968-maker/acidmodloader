@@ -1,85 +1,5 @@
-[19716:19734:1026/200439.824437:ERROR:../../../qtwebengine/src/3rdparty/chromium/dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No existe el fichero o el directorio
+[29420:29439:1112/190354.263355:ERROR:../../../qtwebengine/src/3rdparty/chromium/dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No existe el fichero o el directorio
 GPUInfo not initialized on GpuInfoUpdate
-js: [GPT] Slot.updateTargetingFromMap is deprecated, use Slot.setConfig({targeting: ...}) instead.
-https://goo.gle/gpt-message#171
-js: [GPT] PubAdsService.setTargeting is deprecated, use googletag.setConfig({targeting: ...}) instead.
-https://goo.gle/gpt-message#170
-Traceback (most recent call last):
-  File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/platforms/qt.py", line 550, in on_cookie_added
-    cookie = create_cookie(raw)
-  File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/util.py", line 150, in create_cookie
-    return SimpleCookie(input_)
-  File "/usr/lib64/python3.14/http/cookies.py", line 505, in __init__
-    self.load(input)
-    ~~~~~~~~~^^^^^^^
-  File "/usr/lib64/python3.14/http/cookies.py", line 557, in load
-    self.__parse_string(rawdata)
-    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^
-  File "/usr/lib64/python3.14/http/cookies.py", line 621, in __parse_string
-    self.__set(key, rval, cval)
-    ~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "/usr/lib64/python3.14/http/cookies.py", line 510, in __set
-    M.set(key, real_value, coded_value)
-    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/lib64/python3.14/http/cookies.py", line 357, in set
-    raise CookieError('Illegal key %r' % (key,))
-http.cookies.CookieError: Illegal key 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-js: TypeError: Cannot read properties of undefined (reading '_aGame')
-js: [GPT] PubAdsService.setTargeting is deprecated, use googletag.setConfig({targeting: ...}) instead.
-https://goo.gle/gpt-message#170
-Traceback (most recent call last):
-  File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/platforms/qt.py", line 550, in on_cookie_added
-    cookie = create_cookie(raw)
-  File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/util.py", line 150, in create_cookie
-    return SimpleCookie(input_)
-  File "/usr/lib64/python3.14/http/cookies.py", line 505, in __init__
-    self.load(input)
-    ~~~~~~~~~^^^^^^^
-  File "/usr/lib64/python3.14/http/cookies.py", line 557, in load
-    self.__parse_string(rawdata)
-    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^
-  File "/usr/lib64/python3.14/http/cookies.py", line 621, in __parse_string
-    self.__set(key, rval, cval)
-    ~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "/usr/lib64/python3.14/http/cookies.py", line 510, in __set
-    M.set(key, real_value, coded_value)
-    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/lib64/python3.14/http/cookies.py", line 357, in set
-    raise CookieError('Illegal key %r' % (key,))
-http.cookies.CookieError: Illegal key 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-js: Uncaught TypeError: Cannot read properties of undefined (reading 'unshift')
-js: Error CL001: Multiple Clarity tags detected.
-js: [GPT] Slot.updateTargetingFromMap is deprecated, use Slot.setConfig({targeting: ...}) instead.
-https://goo.gle/gpt-message#171
-Traceback (most recent call last):
-  File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/platforms/qt.py", line 550, in on_cookie_added
-    cookie = create_cookie(raw)
-  File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/util.py", line 150, in create_cookie
-    return SimpleCookie(input_)
-  File "/usr/lib64/python3.14/http/cookies.py", line 505, in __init__
-    self.load(input)
-    ~~~~~~~~~^^^^^^^
-  File "/usr/lib64/python3.14/http/cookies.py", line 557, in load
-    self.__parse_string(rawdata)
-    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^
-  File "/usr/lib64/python3.14/http/cookies.py", line 621, in __parse_string
-    self.__set(key, rval, cval)
-    ~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "/usr/lib64/python3.14/http/cookies.py", line 510, in __set
-    M.set(key, real_value, coded_value)
-    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/lib64/python3.14/http/cookies.py", line 357, in set
-    raise CookieError('Illegal key %r' % (key,))
-http.cookies.CookieError: Illegal key 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-js: [GPT] PubAdsService.setTargeting is deprecated, use googletag.setConfig({targeting: ...}) instead.
-https://goo.gle/gpt-message#170
-js: [GPT] Slot.updateTargetingFromMap is deprecated, use Slot.setConfig({targeting: ...}) instead.
-https://goo.gle/gpt-message#171
-[19716:19734:1026/200458.792029:ERROR:../../../qtwebengine/src/3rdparty/chromium/dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No existe el fichero o el directorio
-[19716:19734:1026/200458.792083:ERROR:../../../qtwebengine/src/3rdparty/chromium/dbus/bus.cc:408] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No existe el fichero o el directorio
-[19716:19716:1026/200458.792455:ERROR:../../../qtwebengine/src/3rdparty/chromium/dbus/object_proxy.cc:573] Failed to call method: org.freedesktop.DBus.Properties.GetAll: object_path= /org/freedesktop/UPower/devices/DisplayDevice: unknown error type: 
-js: Failed to create WebGPU Context Provider
-js: Failed to create WebGPU Context Provider
 Registered new object after initialization, existing clients won't be notified!
 Exception in thread Thread-6 (_call):
 Traceback (most recent call last):
@@ -100,32 +20,9 @@ Traceback (most recent call last):
     return function(self, *args, **kwargs)
   File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/window.py", line 503, in evaluate_js
     raise JavascriptException(result)
-webview.errors.JavascriptException: {'name': 'TypeError', 'stack': 'TypeError: window.pywebview._returnValuesCallbacks.navigate.9889847241213738 is not a function\n    at eval (eval at <anonymous> (:4:29), <anonymous>:1:72)\n    at <anonymous>:4:29', 'message': 'window.pywebview._returnValuesCallbacks.navigate.9889847241213738 is not a function'}
-js: Uncaught TypeError: Cannot read properties of undefined (reading 'unshift')
-js: Error CL001: Multiple Clarity tags detected.
-Traceback (most recent call last):
-  File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/platforms/qt.py", line 550, in on_cookie_added
-    cookie = create_cookie(raw)
-  File "/var/home/azu/azu42968-maker/acidmodloader/venv/lib64/python3.14/site-packages/webview/util.py", line 150, in create_cookie
-    return SimpleCookie(input_)
-  File "/usr/lib64/python3.14/http/cookies.py", line 505, in __init__
-    self.load(input)
-    ~~~~~~~~~^^^^^^^
-  File "/usr/lib64/python3.14/http/cookies.py", line 557, in load
-    self.__parse_string(rawdata)
-    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^
-  File "/usr/lib64/python3.14/http/cookies.py", line 621, in __parse_string
-    self.__set(key, rval, cval)
-    ~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "/usr/lib64/python3.14/http/cookies.py", line 510, in __set
-    M.set(key, real_value, coded_value)
-    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/lib64/python3.14/http/cookies.py", line 357, in set
-    raise CookieError('Illegal key %r' % (key,))
-http.cookies.CookieError: Illegal key 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+webview.errors.JavascriptException: {'name': 'TypeError', 'stack': 'TypeError: window.pywebview._returnValuesCallbacks.navigate.36936023615437796 is not a function\n    at eval (eval at <anonymous> (:4:29), <anonymous>:1:73)\n    at <anonymous>:4:29', 'message': 'window.pywebview._returnValuesCallbacks.navigate.36936023615437796 is not a function'}
+js: TypeError: Cannot read properties of undefined (reading '_aGame')
 js: [GPT] PubAdsService.setTargeting is deprecated, use googletag.setConfig({targeting: ...}) instead.
 https://goo.gle/gpt-message#170
-js: [GPT] Slot.updateTargetingFromMap is deprecated, use Slot.setConfig({targeting: ...}) instead.
-https://goo.gle/gpt-message#171
 Registered new object after initialization, existing clients won't be notified!
 Release of profile requested but WebEnginePage still not deleted. Expect troubles !

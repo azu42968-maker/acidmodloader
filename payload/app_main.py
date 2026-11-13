@@ -6,6 +6,8 @@ import urllib.parse
 from pathlib import Path
 
 import webview
+from http.cookies import SimpleCookie, CookieError
+import webview.util as _wu
 
 import adblock
 from api import Api
@@ -17,6 +19,20 @@ ACID_SCRIPT = (Path(__file__).parent / "modloader_inject.js").read_text(encoding
 GAMEBANANA_SCRIPT = (Path(__file__).parent / "gamebanana_inject.js").read_text(encoding="utf-8")
 MANAGER_SCRIPT = (Path(__file__).parent / "modmanager_inject.js").read_text(encoding="utf-8")
 UPDATE_SCRIPT = (Path(__file__).parent / "update_inject.js").read_text(encoding="utf-8")
+
+
+class _SafeCookie(SimpleCookie):
+    """GameBanana (anuncios) pone cookies con nombres invalidos; pywebview/Qt se cierra si
+    SimpleCookie lanza CookieError dentro de on_cookie_added. Aqui se ignoran."""
+
+    def load(self, rawdata):
+        try:
+            super().load(rawdata)
+        except CookieError:
+            pass
+
+
+_wu.SimpleCookie = _SafeCookie
 
 
 # Aviso de Azu Modification: autocontenido (no depende de los .js inyectados) y sin innerHTML.
@@ -58,6 +74,34 @@ AZUMOD_BANNER_JS = """
   document.body.appendChild(box);
 })(__INFO__);
 """
+
+# Barra minima de navegacion para GameBanana (atras / volver a Acid). Se re-crea sola si la pagina
+# (SPA) borra el DOM al cambiar de ruta, y no depende de gamebanana_inject.js.
+NAV_JS = r"""
+(function (ACID) {
+  if (window.__acidNavTimer) return;
+  function btn(label, fn) {
+    var b = document.createElement('button');
+    b.textContent = label;
+    b.style.cssText = 'background:#1f2937;color:#fff;border:0;border-radius:8px;padding:6px 12px;' +
+      'cursor:pointer;font:600 13px system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.4)';
+    b.onclick = fn;
+    return b;
+  }
+  function mk() {
+    if (document.getElementById('acid-nav') || !document.body) return;
+    var box = document.createElement('div');
+    box.id = 'acid-nav';
+    box.style.cssText = 'position:fixed;left:12px;top:12px;z-index:2147483647;display:flex;gap:6px';
+    box.appendChild(btn('\u2190', function () { history.back(); }));
+    box.appendChild(btn('Acid Mods', function () { location.href = ACID; }));
+    document.body.appendChild(box);
+  }
+  window.__acidNavTimer = setInterval(mk, 1000);
+  mk();
+})(__ACID__);
+"""
+
 
 _azumod = {"info": None, "started": False}
 
@@ -113,14 +157,18 @@ def main() -> None:
         except Exception:
             current_url = ""
         host = urllib.parse.urlparse(current_url).hostname or ""
-        if host.endswith("gamebanana.com"):
-            window.evaluate_js(GAMEBANANA_SCRIPT)
-        else:
-            window.evaluate_js(ACID_SCRIPT)
-        window.evaluate_js(MANAGER_SCRIPT)
-        window.evaluate_js(UPDATE_SCRIPT)
-        adblock.install(window, api.get_adblock())  # solo actua la primera vez
-        adblock.on_loaded(window, host)
+        try:
+            if host.endswith("gamebanana.com"):
+                window.evaluate_js(GAMEBANANA_SCRIPT)
+                window.evaluate_js(NAV_JS.replace("__ACID__", json.dumps(ACID_URL)))
+            else:
+                window.evaluate_js(ACID_SCRIPT)
+            window.evaluate_js(MANAGER_SCRIPT)
+            window.evaluate_js(UPDATE_SCRIPT)
+            adblock.install(window, api.get_adblock())  # solo actua la primera vez
+            adblock.on_loaded(window, host)
+        except Exception as e:
+            print("inject error:", e)
         _show_azumod_banner(window, api)          # se reinyecta tras cada navegacion
         if not _azumod["started"]:
             _azumod["started"] = True

@@ -161,11 +161,23 @@ def _find_target_python_interpreter() -> list[str]:
     candidate = shutil.which(f"python{version_str}")
     if candidate:
         return [candidate]
+
+    # Linux/macOS: si hay `uv`, el instala un Python 3.12 portable (con headers) sin tocar el sistema.
+    uv = shutil.which("uv") or str(Path.home() / ".local" / "bin" / "uv")
+    if Path(uv).is_file():
+        print(f"[i] Python {version_str} no esta instalado - instalandolo con uv (solo para este build)...")
+        subprocess.run([uv, "python", "install", version_str], check=True)
+        found = subprocess.run([uv, "python", "find", version_str], capture_output=True, text=True)
+        if found.returncode == 0 and found.stdout.strip():
+            return [found.stdout.strip()]
+
     raise SystemExit(
-        f"[X] Python {version_str} isn't installed, and this script can only "
-        "auto-install it on Windows. Install Python 3.12 for your OS from "
-        f"https://www.python.org/downloads/release/python-{TARGET_PYTHON[0]}{TARGET_PYTHON[1]}0/ "
-        "and re-run this script."
+        f"[X] Python {version_str} no esta instalado. Las dependencias (jpype1, py7zr...) no tienen "
+        "wheels para Pythons muy nuevos (ej. 3.15) y Bazzite no trae los headers para compilarlas.\n"
+        "Solucion rapida en Bazzite:\n"
+        "    brew install uv\n"
+        "    python3 build_exe.py\n"
+        "(o instala Python 3.12 por otro medio, p. ej. distrobox) y vuelve a correr este script."
     )
 
 
@@ -189,8 +201,11 @@ def _ensure_target_python() -> None:
         return
 
     if not _venv_is_usable(BUILD_VENV):
-        if "--py312" in sys.argv:
-            # Opcional: forzar Python 3.12 (lo descarga si hace falta).
+        # Fuera de Windows, si el Python del sistema es mas nuevo que 3.12 las dependencias no
+        # compilan (sin wheels ni headers), asi que se usa 3.12 automaticamente.
+        too_new = (not IS_WIN) and sys.version_info[:2] > TARGET_PYTHON
+        if "--py312" in sys.argv or too_new:
+            # Forzar Python 3.12 (en Windows lo descarga; en Linux/macOS usa python3.12 o uv).
             interpreter_prefix = _find_target_python_interpreter()
         else:
             interpreter_prefix = [sys.executable]  # usa el Python con el que lo abriste
@@ -226,10 +241,29 @@ def _extracted_home(extracted: Path) -> Path:
     return mac_home if mac_home.is_dir() else extracted
 
 
+def _jre_matches_this_os() -> bool:
+    """True si vendor/jre trae el java de ESTE sistema (evita empaquetar un JRE de Windows en Linux)."""
+    java = JRE_DIR / "bin" / ("java.exe" if IS_WIN else "java")
+    if not java.is_file():
+        return False
+    if IS_WIN:
+        return True
+    try:
+        magic = java.read_bytes()[:4]
+    except OSError:
+        return False
+    expected = b"\xcf\xfa\xed\xfe" if IS_MAC else b"\x7fELF"
+    # macOS: Mach-O 64 little-endian (arm64/x86_64); en fat binaries puede variar, se acepta tambien 0xcafebabe
+    return magic == expected or (IS_MAC and magic == b"\xca\xfe\xba\xbe")
+
+
 def _download_jre() -> None:
     if JRE_DIR.is_dir() and any(JRE_DIR.iterdir()):
-        print(f"[i] {JRE_DIR} already exists, skipping download.")
-        return
+        if _jre_matches_this_os():
+            print(f"[i] {JRE_DIR} already exists, skipping download.")
+            return
+        print(f"[!] {JRE_DIR} no es un JRE de este sistema (probablemente quedo de otro SO). Se vuelve a descargar...")
+        shutil.rmtree(JRE_DIR)
 
     os_name, arch = _adoptium_os_arch()
     print(f"[i] Looking up latest Temurin 17 JRE for {os_name}/{arch}...")
@@ -357,6 +391,8 @@ def _run_pyinstaller() -> None:
         raise SystemExit("[X] PyInstaller isn't installed - run: pip install pyinstaller")
 
     _clear_old_dist()
+    # build/ de otro sistema (p. ej. subido al repo desde Windows) puede contaminar la cache de PyInstaller.
+    shutil.rmtree(ROOT / "build", ignore_errors=True)
 
     args = [
         sys.executable, "-m", "PyInstaller",
@@ -415,6 +451,8 @@ def _package() -> None:
         binary = DIST_DIR / "AcidModLoader"
         if not binary.is_file():
             raise SystemExit(f"[X] PyInstaller no genero {binary}")
+        if binary.read_bytes()[:4] != b"\x7fELF":
+            raise SystemExit(f"[X] {binary} no es un binario de Linux (ELF). Borra dist/ y build/ y reintenta.")
         shutil.copy2(binary, final)
         final.chmod(final.stat().st_mode | 0o111)
 
